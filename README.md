@@ -1,3 +1,28 @@
+# Price Deviation Calculator
+
+Web app Next.js per calcolare lo scostamento di prezzo rispetto a una serie storica di acquisto.
+
+## Funzionalità principali
+- Upload file storico prezzi (CSV/XLSX)
+- Calcolo prezzo atteso (media semplice)
+- Input nuovo prezzo offerto
+- Calcolo scostamento percentuale e assoluto
+
+## Stack
+- Next.js (TypeScript)
+- Tailwind CSS
+
+## Avvio progetto
+```bash
+npm run dev
+```
+
+Apri http://localhost:3000 per vedere l’app.
+
+---
+
+# Documentazione Next.js generata automaticamente
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
