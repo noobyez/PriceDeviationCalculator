@@ -18,6 +18,7 @@ interface PriceChartProps {
   prices: number[];
   regression: { a: number; b: number; predicted: number } | null;
   newPrice: number | null;
+  isNewPriceOutlier?: boolean;
 }
 
 function getStdDev(arr: number[]) {
@@ -27,7 +28,7 @@ function getStdDev(arr: number[]) {
   return stdDev;
 }
 
-export default function PriceChart({ prices, regression, newPrice }: PriceChartProps) {
+export default function PriceChart({ prices, regression, newPrice, isNewPriceOutlier = false }: PriceChartProps) {
   const n = prices.length;
   const labels = Array.from({ length: n + 1 }, (_, i) => (i + 1).toString());
   // Serie storica
@@ -91,7 +92,7 @@ export default function PriceChart({ prices, regression, newPrice }: PriceChartP
         tension: 0.1,
       },
       {
-        label: "Prezzo atteso",
+        label: "Prezzo atteso secondo trend storico",
         data: expectedPriceData,
         borderColor: "#eab308",
         backgroundColor: "#eab308",
@@ -101,12 +102,12 @@ export default function PriceChart({ prices, regression, newPrice }: PriceChartP
         showLine: false,
       },
       {
-        label: "Prezzo offerto",
+        label: isNewPriceOutlier ? "Prezzo offerto (OUTLIER)" : "Prezzo offerto",
         data: newPriceData,
-        borderColor: "#ef4444",
-        backgroundColor: "#ef4444",
-        pointRadius: 8,
-        pointStyle: "triangle",
+        borderColor: isNewPriceOutlier ? "#dc2626" : "#22c55e",
+        backgroundColor: isNewPriceOutlier ? "#dc2626" : "#22c55e",
+        pointRadius: isNewPriceOutlier ? 12 : 8,
+        pointStyle: isNewPriceOutlier ? "crossRot" : "triangle",
         fill: false,
         showLine: false,
       },
@@ -115,7 +116,7 @@ export default function PriceChart({ prices, regression, newPrice }: PriceChartP
         ? [{
             label: "Differenziale",
             data: Array(n).fill(null).concat([regression.predicted, newPrice]),
-            borderColor: "#a855f7",
+            borderColor: isNewPriceOutlier ? "#dc2626" : "#a855f7",
             borderWidth: 2,
             pointRadius: 0,
             fill: false,
@@ -174,8 +175,8 @@ export default function PriceChart({ prices, regression, newPrice }: PriceChartP
         grid: { display: true, color: "#e5e7eb" },
         ticks: { font: { size: 16 } },
         beginAtZero: false,
-        suggestedMin: Math.min(...prices) * 0.95,
-        suggestedMax: Math.max(...prices) * 1.05,
+        min: Math.floor(Math.min(...prices, ...(newPrice !== null ? [newPrice] : []), ...(regression ? [regression.predicted * 0.95] : []))),
+        max: Math.ceil(Math.max(...prices, ...(newPrice !== null ? [newPrice] : []), ...(regression ? [regression.predicted * 1.05] : [])) * 1.1),
       },
     },
     elements: {
@@ -198,6 +199,9 @@ export default function PriceChart({ prices, regression, newPrice }: PriceChartP
           Differenziale: <span>{diffAbs?.toFixed(2)} ({diffPerc?.toFixed(2)}%)</span>
         </div>
       )}
+      <p className="mt-6 text-xs text-zinc-400 dark:text-zinc-500 text-center max-w-lg italic">
+        Il modello utilizza una regressione lineare sui dati storici forniti. I risultati sono indicativi e non costituiscono previsione certa.
+      </p>
     </div>
   );
 }

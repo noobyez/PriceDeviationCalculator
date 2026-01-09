@@ -5,6 +5,8 @@ import PriceChart from "./PriceChart";
 
 interface NewPriceDeviationProps {
   prices: number[];
+  isNewPriceOutlier?: boolean;
+  onDeviationChange?: (price: number | null, deviation: { abs: number; perc: number } | null) => void;
 }
 
 function linearRegression(prices: number[]) {
@@ -25,7 +27,7 @@ function linearRegression(prices: number[]) {
   return { a, b, predicted };
 }
 
-export default function NewPriceDeviation({ prices }: NewPriceDeviationProps) {
+export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, onDeviationChange }: NewPriceDeviationProps) {
   const [newPrice, setNewPrice] = useState<string>("");
   const [result, setResult] = useState<{ abs: number; perc: number } | null>(null);
   const [lastPrice, setLastPrice] = useState<number | null>(null);
@@ -35,6 +37,7 @@ export default function NewPriceDeviation({ prices }: NewPriceDeviationProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewPrice(e.target.value);
     setResult(null);
+    onDeviationChange?.(null, null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -46,6 +49,7 @@ export default function NewPriceDeviation({ prices }: NewPriceDeviationProps) {
     const perc = ((prezzo - prezzoAtteso) / prezzoAtteso) * 100;
     setResult({ abs, perc });
     setLastPrice(prezzo);
+    onDeviationChange?.(prezzo, { abs, perc });
   };
 
   return (
@@ -69,12 +73,15 @@ export default function NewPriceDeviation({ prices }: NewPriceDeviationProps) {
         </button>
       </form>
       {result && (
-        <div className="mt-6 p-4 bg-yellow-50/80 dark:bg-yellow-900/60 rounded-lg text-yellow-800 dark:text-yellow-100 text-lg font-medium shadow-sm text-center">
+        <div className={`mt-6 p-4 rounded-lg text-lg font-medium shadow-sm text-center ${isNewPriceOutlier ? "bg-red-50/80 dark:bg-red-900/60 text-red-800 dark:text-red-100 ring-2 ring-red-400" : "bg-yellow-50/80 dark:bg-yellow-900/60 text-yellow-800 dark:text-yellow-100"}`}>
           <div><span className="font-medium">Scostamento assoluto:</span> {result.abs.toFixed(2)}</div>
           <div><span className="font-medium">Scostamento percentuale:</span> {result.perc.toFixed(2)}%</div>
+          {isNewPriceOutlier && (
+            <div className="mt-2 text-red-600 dark:text-red-300 font-semibold">⚠️ Outlier: oltre ±5% dal prezzo atteso</div>
+          )}
         </div>
       )}
-      <PriceChart prices={prices} regression={regression} newPrice={result ? parseFloat(newPrice.replace(",", ".")) : null} />
+      <PriceChart prices={prices} regression={regression} newPrice={result ? parseFloat(newPrice.replace(",", ".")) : null} isNewPriceOutlier={isNewPriceOutlier} />
     </div>
   );
 }

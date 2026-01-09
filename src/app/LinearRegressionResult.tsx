@@ -29,7 +29,7 @@ export default function LinearRegressionResult({ prices }: LinearRegressionResul
   if (!result) return null;
   return (
     <div className="mt-2 p-3 bg-green-50 rounded text-green-800 dark:bg-green-900 dark:text-green-100">
-      <span className="font-medium">Prezzo atteso (regressione lineare): </span>
+      <span className="font-medium">Prezzo atteso secondo trend storico: </span>
       {result.predicted.toFixed(2)}
     </div>
   );
