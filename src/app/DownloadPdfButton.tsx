@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import jsPDF from "jspdf";
+// @ts-ignore: no type declarations for 'jspdf-autotable'
 import autoTable from "jspdf-autotable";
 import html2canvas from "html2canvas";
 

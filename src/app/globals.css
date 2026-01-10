@@ -1,5 +1,7 @@
 /* --- Apple-like Design System: Minimal, Floating, Typographic --- */
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --background: #f9fafb;
