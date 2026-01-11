@@ -101,22 +101,6 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
           )}
         </div>
       )}
-      {rdaAlert && (
-        <div
-          className={`mt-6 p-4 rounded-lg text-lg font-medium shadow-sm text-center ${
-            rdaAlert.status === "ALERT"
-              ? "bg-red-50/80 dark:bg-red-900/60 text-red-800 dark:text-red-100 ring-2 ring-red-400"
-              : rdaAlert.status === "WARNING"
-              ? "bg-yellow-50/80 dark:bg-yellow-900/60 text-yellow-800 dark:text-yellow-100"
-              : "bg-green-50/80 dark:bg-green-900/60 text-green-800 dark:text-green-100"
-          }`}
-        >
-          <div><span className="font-medium">Stato RDA:</span> {rdaAlert.status}</div>
-          {rdaAlert.reasons.map((reason, index) => (
-            <div key={index} className="text-sm mt-1">{reason}</div>
-          ))}
-        </div>
-      )}
       <PriceChart prices={prices} regression={regression} newPrice={result ? parseFloat(newPrice.replace(",", ".")) : null} isNewPriceOutlier={isNewPriceOutlier} />
       <form onSubmit={handleRdaSubmit} className="flex flex-col gap-6 mt-6">
         <label className="label text-zinc-700 mb-1">Prezzo RDA:</label>
