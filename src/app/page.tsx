@@ -79,6 +79,9 @@ export default function Home() {
   const [appliedFromYear, setAppliedFromYear] = useState<string>("");
   const [appliedToYear, setAppliedToYear] = useState<string>("");
 
+  // Toggle per rimuovere valori outlier identificati tramite Z-score (|Z| > 2)
+  const [removeOutliers, setRemoveOutliers] = useState<boolean>(false);
+
   const handleUpload = (uploadedPurchases: Purchase[]) => {
     try {
       // sanitize input: ensure price is finite number and date is valid
@@ -165,14 +168,34 @@ export default function Home() {
     [filteredByYear]
   );
 
-  // intervalPrices: apply interval selection (used for statistics/regression)
-  const intervalPrices = useMemo(() => {
+  // intervalPricesRaw: dati originali dopo selezione intervallo (usati per visualizzazione e per calcolare Z-score)
+  const intervalPricesRaw = useMemo(() => {
     if (interval === "all") return fullPrices;
     if (typeof interval === "number") {
       return fullPrices.slice(-interval);
     }
     return fullPrices;
   }, [fullPrices, interval]);
+
+  // Calcola Z-score per individuare outlier e costruisce intervalPrices filtrati se removeOutliers=true
+  const { intervalPrices, outlierFlags } = useMemo(() => {
+    if (!intervalPricesRaw || intervalPricesRaw.length === 0) {
+      return { intervalPrices: intervalPricesRaw, outlierFlags: [] };
+    }
+
+    const m = mean(intervalPricesRaw);
+    const s = std(intervalPricesRaw);
+
+    const flags = intervalPricesRaw.map((p) => {
+      if (s === 0) return false; // deviazione nulla -> nessun outlier
+      const z = Math.abs((p - m) / s);
+      return z > 2;
+    });
+
+    const filtered = removeOutliers ? intervalPricesRaw.filter((_, i) => !flags[i]) : intervalPricesRaw;
+
+    return { intervalPrices: filtered, outlierFlags: flags };
+  }, [intervalPricesRaw, removeOutliers]);
 
   // Calcola regressione per outlier e PDF (include R² confidence)
   const regression = useMemo(() => {
@@ -283,17 +306,36 @@ export default function Home() {
               )}
             </div>
             <h2 className="label text-lg mb-6">Storico prezzi caricato</h2>
-            <div className="flex flex-wrap gap-3 text-lg mb-8">
-              {intervalPrices.map((price, i) => (
+            <div className="flex flex-wrap gap-3 text-lg mb-2">
+              {intervalPricesRaw.map((price, i) => (
                 <span
                   key={i}
-                  className="px-4 py-1 rounded-full shadow-sm font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                  className={`px-4 py-1 rounded-full shadow-sm font-medium ${
+                    outlierFlags[i]
+                      ? 'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100 ring-1 ring-red-400'
+                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
+                  }`}
                   style={{ fontVariantNumeric: "tabular-nums" }}
                 >
                   {price}
                 </span>
               ))}
             </div>
+
+            {/* Toggle Z-score: sotto lo storico prezzi e sopra le statistiche */}
+            <div className="w-full flex items-center justify-center mb-6">
+              <label className="flex items-center gap-4 cursor-pointer px-3 py-2 rounded-lg border-2 border-zinc-300 dark:border-zinc-600 bg-white/60 dark:bg-black/40">
+                <input
+                  type="checkbox"
+                  checked={removeOutliers}
+                  onChange={(e) => setRemoveOutliers(e.target.checked)}
+                  className="w-6 h-6 rounded-sm cursor-pointer border-2 border-zinc-400 dark:border-zinc-500 text-red-600 focus:outline-none"
+                  aria-label="Rimuovi outlier (Z-score)"
+                />
+                <span className="text-base font-semibold text-zinc-800 dark:text-zinc-100">Rimuovi outlier (|Z| {'>'} 2)</span>
+              </label>
+            </div>
+
             {intervalPrices && intervalPrices.length > 0 ? (
               <>
                 <StatisticsPanel prices={intervalPrices} />
