@@ -46,6 +46,10 @@ export default function LinearRegressionResult({ prices }: LinearRegressionResul
         <span className="font-medium">Confidenza modello (R²): </span>
         {(result.r2 * 100).toFixed(2)}%
       </div>
+      {/* Short, non-technical explanation for R² */}
+      <div className="text-xs text-green-700 dark:text-green-200 mt-1 italic">
+        R² indica quanto i prezzi storici seguono un andamento coerente: più è alto, più il trend è probabile e affidabile.
+      </div>
     </div>
   );
 }
