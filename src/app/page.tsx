@@ -96,14 +96,23 @@ export default function Home() {
   const handleYearFilter = () => {
     const fromRaw = fromYear.trim();
     const toRaw = toYear.trim();
+
+    const isFullYear = (s: string) => /^\d{4}$/.test(s);
+
+    // If a year string is provided, require it to be a full 4-digit year
+    if (fromRaw !== "" && !isFullYear(fromRaw)) return;
+    if (toRaw !== "" && !isFullYear(toRaw)) return;
+
     const fromParsed = fromRaw !== "" ? parseInt(fromRaw, 10) : NaN;
     const toParsed = toRaw !== "" ? parseInt(toRaw, 10) : NaN;
     const from = !Number.isNaN(fromParsed) ? fromParsed : null;
     const to = !Number.isNaN(toParsed) ? toParsed : null;
+
     if (from !== null && to !== null && from > to) {
       // invalid range: do not apply
       return;
     }
+
     setAppliedFromYear(fromRaw);
     setAppliedToYear(toRaw);
   };
@@ -112,6 +121,11 @@ export default function Home() {
   const invalidYearRange = useMemo(() => {
     const fromRaw = fromYear.trim();
     const toRaw = toYear.trim();
+    const isFullYear = (s: string) => /^\d{4}$/.test(s);
+
+    if (fromRaw !== "" && !isFullYear(fromRaw)) return true;
+    if (toRaw !== "" && !isFullYear(toRaw)) return true;
+
     const fromParsed = fromRaw !== "" ? parseInt(fromRaw, 10) : NaN;
     const toParsed = toRaw !== "" ? parseInt(toRaw, 10) : NaN;
     const from = !Number.isNaN(fromParsed) ? fromParsed : null;
@@ -293,7 +307,8 @@ export default function Home() {
                   placeholder="Anno da"
                   value={fromYear}
                   onChange={(e) => setFromYear(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); } }}
+                  onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); } }}
                   className="input input-bordered w-full"
                 />
                 <input
@@ -301,7 +316,8 @@ export default function Home() {
                   placeholder="Anno a"
                   value={toYear}
                   onChange={(e) => setToYear(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); } }}
+                  onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); } }}
                   className="input input-bordered w-full"
                 />
                 <button
