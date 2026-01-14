@@ -83,10 +83,21 @@ export default function Home() {
   // Calcola i prezzi filtrati in base all'intervallo selezionato
   const filteredPrices = useMemo(() => {
     if (!purchases) return null;
-    const prices = purchases.map((purchase) => purchase.price);
+
+    const filteredPurchases = purchases.filter((purchase) => {
+      const purchaseYear = new Date(purchase.date).getFullYear();
+      const from = parseInt(fromYear, 10);
+      const to = parseInt(toYear, 10);
+      return (
+        (!isNaN(from) ? purchaseYear >= from : true) &&
+        (!isNaN(to) ? purchaseYear <= to : true)
+      );
+    });
+
+    const prices = filteredPurchases.map((purchase) => purchase.price);
     if (interval === "all") return prices;
     return prices.slice(-interval);
-  }, [purchases, interval]);
+  }, [purchases, interval, fromYear, toYear]);
 
   // Calcola regressione per outlier e PDF
   const regression = useMemo(() => {
