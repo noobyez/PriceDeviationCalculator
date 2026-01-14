@@ -73,6 +73,8 @@ export default function Home() {
   const [customInterval, setCustomInterval] = useState<string>("");
   const [newPrice, setNewPrice] = useState<number | null>(null);
   const [deviation, setDeviation] = useState<{ abs: number; perc: number } | null>(null);
+  const [fromYear, setFromYear] = useState<string>("");
+  const [toYear, setToYear] = useState<string>("");
 
   const handleUpload = (uploadedPurchases: Purchase[]) => {
     setPurchases(uploadedPurchases);
@@ -132,6 +134,14 @@ export default function Home() {
   const handleCustomIntervalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       applyCustomInterval();
+    }
+  };
+
+  const handleYearFilter = () => {
+    const from = parseInt(fromYear, 10);
+    const to = parseInt(toYear, 10);
+    if (!isNaN(from) && !isNaN(to) && from <= to) {
+      console.log(`Filtering data from ${from} to ${to}`);
     }
   };
 
@@ -203,6 +213,31 @@ export default function Home() {
               ).toFixed(2)}
             </div>
             <LinearRegressionResult prices={filteredPrices} />
+            <div className="flex flex-col gap-2 mb-6 items-center justify-center">
+              <h2 className="label text-lg">Seleziona intervallo anni</h2>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="number"
+                  placeholder="Anno da"
+                  value={fromYear}
+                  onChange={(e) => setFromYear(e.target.value)}
+                  className="input input-bordered w-full"
+                />
+                <input
+                  type="number"
+                  placeholder="Anno a"
+                  value={toYear}
+                  onChange={(e) => setToYear(e.target.value)}
+                  className="input input-bordered w-full"
+                />
+                <button
+                  onClick={handleYearFilter}
+                  className="btn btn-primary px-2 py-1 text-xs"
+                >
+                  Applica
+                </button>
+              </div>
+            </div>
             <NewPriceDeviation 
               prices={filteredPrices} 
               isNewPriceOutlier={isNewPriceOutlier}
