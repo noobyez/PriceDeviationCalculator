@@ -75,6 +75,9 @@ export default function Home() {
   const [deviation, setDeviation] = useState<{ abs: number; perc: number } | null>(null);
   const [fromYear, setFromYear] = useState<string>("");
   const [toYear, setToYear] = useState<string>("");
+  // Applied year range (only updated when user clicks "Applica")
+  const [appliedFromYear, setAppliedFromYear] = useState<string>("");
+  const [appliedToYear, setAppliedToYear] = useState<string>("");
 
   const handleUpload = (uploadedPurchases: Purchase[]) => {
     try {
@@ -89,6 +92,22 @@ export default function Home() {
     }
   };
 
+  // Apply year filter when user clicks Applica
+  const handleYearFilter = () => {
+    const fromRaw = fromYear.trim();
+    const toRaw = toYear.trim();
+    const fromParsed = fromRaw !== "" ? parseInt(fromRaw, 10) : NaN;
+    const toParsed = toRaw !== "" ? parseInt(toRaw, 10) : NaN;
+    const from = !Number.isNaN(fromParsed) ? fromParsed : null;
+    const to = !Number.isNaN(toParsed) ? toParsed : null;
+    if (from !== null && to !== null && from > to) {
+      // invalid range: do not apply
+      return;
+    }
+    setAppliedFromYear(fromRaw);
+    setAppliedToYear(toRaw);
+  };
+
   // Validate year range to show UI feedback and avoid accidental submits
   const invalidYearRange = useMemo(() => {
     const fromRaw = fromYear.trim();
@@ -100,19 +119,15 @@ export default function Home() {
     return from !== null && to !== null && from > to;
   }, [fromYear, toYear]);
 
+  // Use appliedFromYear/appliedToYear so typing does not immediately change layout
   const filteredByYear = useMemo(() => {
     if (!purchases) return [];
-    const fromRaw = fromYear.trim();
-    const toRaw = toYear.trim();
+    const fromRaw = appliedFromYear.trim();
+    const toRaw = appliedToYear.trim();
     const fromParsed = fromRaw !== "" ? parseInt(fromRaw, 10) : NaN;
     const toParsed = toRaw !== "" ? parseInt(toRaw, 10) : NaN;
     const from = !Number.isNaN(fromParsed) ? fromParsed : null;
     const to = !Number.isNaN(toParsed) ? toParsed : null;
-
-    // If the range is explicitly invalid, do not filter (show full dataset) to avoid hiding UI/crash
-    if (from !== null && to !== null && from > to) {
-      return purchases;
-    }
 
     return purchases.filter((purchase) => {
       try {
@@ -126,7 +141,7 @@ export default function Home() {
         return false;
       }
     });
-  }, [purchases, fromYear, toYear]);
+  }, [purchases, appliedFromYear, appliedToYear]);
 
   // fullPrices: all prices within selected years (preserve original order and duplicates)
   const fullPrices = useMemo(() =>
@@ -194,20 +209,12 @@ export default function Home() {
     }
   };
 
-  const handleYearFilter = () => {
-    const from = parseInt(fromYear, 10);
-    const to = parseInt(toYear, 10);
-    if (!isNaN(from) && !isNaN(to) && from <= to) {
-      console.log(`Filtering data from ${from} to ${to}`);
-    }
-  };
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--background)]">
       <main className="w-full max-w-2xl mx-auto flex flex-col items-center justify-center">
         <h1 className="section-title mb-12">Price Prediction Model Analysis</h1>
         <PriceHistoryUpload onUpload={handleUpload} />
-        {purchases && filteredByYear.length > 0 && (
+        {purchases && (
           <div className="card w-full max-w-xl mx-auto flex flex-col items-center">
             {/* Selezione intervallo */}
             <div className="flex flex-wrap gap-2 mb-2 items-center justify-center">
@@ -286,6 +293,7 @@ export default function Home() {
                   placeholder="Anno da"
                   value={fromYear}
                   onChange={(e) => setFromYear(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                   className="input input-bordered w-full"
                 />
                 <input
@@ -293,9 +301,11 @@ export default function Home() {
                   placeholder="Anno a"
                   value={toYear}
                   onChange={(e) => setToYear(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                   className="input input-bordered w-full"
                 />
                 <button
+                  type="button"
                   onClick={handleYearFilter}
                   className="btn btn-primary px-2 py-1 text-xs"
                 >
