@@ -40,29 +40,87 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
   };
 
   const parseExcel = (buffer: ArrayBuffer): Purchase[] => {
-    const workbook = XLSX.read(buffer, { type: "array" });
+    const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
-    const data: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    const data: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
 
     const purchases: Purchase[] = [];
     for (const row of data) {
       const quantity = typeof row[0] === "number" ? row[0] : parseFloat(String(row[0]).replace(",", "."));
-      const date = typeof row[1] === "string" ? row[1] : null;
-      if (!isNaN(quantity) && date) {
-        purchases.push({ price: quantity, date });
+
+      // Normalize date from different possible cell types (string, number, Date)
+      let dateValue: string | null = null;
+      const cell = row[1];
+
+      if (typeof cell === "string") {
+        const s = cell.trim();
+        const standardized = s.replace(/\//g, "-");
+        const m = standardized.match(/^(\d{1,2})-(\d{1,2})-(\d{2}|\d{4})$/);
+        if (m) {
+          const day = m[1].padStart(2, "0");
+          const month = m[2].padStart(2, "0");
+          let year = m[3];
+          if (year.length === 2) year = `20${year}`;
+          const iso = `${year}-${month}-${day}`; // YYYY-MM-DD
+          const d = new Date(iso);
+          if (!isNaN(d.getTime())) dateValue = d.toISOString();
+        } else {
+          const d = new Date(standardized);
+          if (!isNaN(d.getTime())) dateValue = d.toISOString();
+        }
+      } else if (cell instanceof Date) {
+        dateValue = cell.toISOString();
+      } else if (typeof cell === "number") {
+        // Excel stores dates as serial numbers; use XLSX utility to parse
+        try {
+          const dc = (XLSX as any).SSF.parse_date_code(cell);
+          if (dc && dc.y) {
+            const d = new Date(dc.y, dc.m - 1, dc.d);
+            dateValue = d.toISOString();
+          }
+        } catch {
+          // fallback: attempt JS conversion (most spreadsheets use 25569 offset)
+          const jsDate = new Date(Math.round((cell - 25569) * 86400 * 1000));
+          if (!isNaN(jsDate.getTime())) dateValue = jsDate.toISOString();
+        }
+      }
+
+      if (!isNaN(quantity) && dateValue) {
+        purchases.push({ price: quantity, date: dateValue });
       }
     }
     return purchases;
   };
 
   const parseTextFile = (text: string): Purchase[] => {
+    const parseDateString = (s: string | undefined | null): string | null => {
+      if (!s) return null;
+      const standardized = s.trim().replace(/\//g, "-");
+      const m = standardized.match(/^(\d{1,2})-(\d{1,2})-(\d{2}|\d{4})$/);
+      if (m) {
+        const day = m[1].padStart(2, "0");
+        const month = m[2].padStart(2, "0");
+        let year = m[3];
+        if (year.length === 2) year = `20${year}`;
+        const iso = `${year}-${month}-${day}`; // YYYY-MM-DD
+        const d = new Date(iso);
+        if (!isNaN(d.getTime())) return d.toISOString();
+      }
+      const d2 = new Date(standardized);
+      if (!isNaN(d2.getTime())) return d2.toISOString();
+      return null;
+    };
+
     return text
-      .split(/\n/)
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
       .map((line) => {
-        const [quantity, date] = line.split(/[,;\t]+/).map((v) => v.trim());
-        const parsedQuantity = parseFloat(quantity.replace(",", "."));
-        return !isNaN(parsedQuantity) && date ? { price: parsedQuantity, date } : null;
+        const [quantityRaw, dateRaw] = line.split(/[,;\t]+/).map((v) => v.trim());
+        const parsedQuantity = parseFloat(String(quantityRaw).replace(",", "."));
+        const parsedDate = parseDateString(dateRaw);
+        return !isNaN(parsedQuantity) && parsedDate ? { price: parsedQuantity, date: parsedDate } : null;
       })
       .filter((item): item is Purchase => item !== null);
   };
