@@ -6,6 +6,7 @@ import PriceChart from "./PriceChart";
 import StatisticsPanel from "./StatisticsPanel";
 import DownloadPdfButton from "./DownloadPdfButton";
 import { useState, useMemo } from "react";
+import { Purchase } from "../models/Purchase";
 
 // Funzioni statistiche
 function mean(arr: number[]) {
@@ -67,24 +68,151 @@ function getOutlierBounds(arr: number[]) {
 }
 
 export default function Home() {
-  const [prices, setPrices] = useState<number[] | null>(null);
+  const [purchases, setPurchases] = useState<Purchase[] | null>(null);
   const [interval, setInterval] = useState<number | "all">("all");
   const [customInterval, setCustomInterval] = useState<string>("");
   const [newPrice, setNewPrice] = useState<number | null>(null);
   const [deviation, setDeviation] = useState<{ abs: number; perc: number } | null>(null);
+  const [fromYear, setFromYear] = useState<string>("");
+  const [toYear, setToYear] = useState<string>("");
+  // Applied year range (only updated when user clicks "Applica")
+  const [appliedFromYear, setAppliedFromYear] = useState<string>("");
+  const [appliedToYear, setAppliedToYear] = useState<string>("");
 
-  // Calcola i prezzi filtrati in base all'intervallo selezionato
-  const filteredPrices = useMemo(() => {
-    if (!prices) return null;
-    if (interval === "all") return prices;
-    return prices.slice(-interval);
-  }, [prices, interval]);
+  // Toggle per rimuovere valori outlier identificati tramite Z-score (|Z| > 2)
+  const [removeOutliers, setRemoveOutliers] = useState<boolean>(false);
 
-  // Calcola regressione per outlier e PDF
+  const handleUpload = (uploadedPurchases: Purchase[]) => {
+    try {
+      // sanitize input: ensure price is finite number and date is valid
+      const sane: Purchase[] = uploadedPurchases
+        .map((p) => ({ price: Number(p.price), date: String(p.date) }))
+        .filter((p) => Number.isFinite(p.price) && !!p.date && !isNaN(new Date(p.date).getTime()));
+      setPurchases(sane.length > 0 ? sane : null);
+    } catch (err) {
+      console.error('Error processing uploaded purchases', err);
+      setPurchases(null);
+    }
+  };
+
+  // Apply year filter when user clicks Applica
+  const handleYearFilter = () => {
+    const fromRaw = fromYear.trim();
+    const toRaw = toYear.trim();
+
+    const isFullYear = (s: string) => /^\d{4}$/.test(s);
+
+    // If a year string is provided, require it to be a full 4-digit year
+    if (fromRaw !== "" && !isFullYear(fromRaw)) return;
+    if (toRaw !== "" && !isFullYear(toRaw)) return;
+
+    const fromParsed = fromRaw !== "" ? parseInt(fromRaw, 10) : NaN;
+    const toParsed = toRaw !== "" ? parseInt(toRaw, 10) : NaN;
+    const from = !Number.isNaN(fromParsed) ? fromParsed : null;
+    const to = !Number.isNaN(toParsed) ? toParsed : null;
+
+    if (from !== null && to !== null && from > to) {
+      // invalid range: do not apply
+      return;
+    }
+
+    setAppliedFromYear(fromRaw);
+    setAppliedToYear(toRaw);
+  };
+
+  // Validate year range to show UI feedback and avoid accidental submits
+  const invalidYearRange = useMemo(() => {
+    const fromRaw = fromYear.trim();
+    const toRaw = toYear.trim();
+    const isFullYear = (s: string) => /^\d{4}$/.test(s);
+
+    if (fromRaw !== "" && !isFullYear(fromRaw)) return true;
+    if (toRaw !== "" && !isFullYear(toRaw)) return true;
+
+    const fromParsed = fromRaw !== "" ? parseInt(fromRaw, 10) : NaN;
+    const toParsed = toRaw !== "" ? parseInt(toRaw, 10) : NaN;
+    const from = !Number.isNaN(fromParsed) ? fromParsed : null;
+    const to = !Number.isNaN(toParsed) ? toParsed : null;
+    return from !== null && to !== null && from > to;
+  }, [fromYear, toYear]);
+
+  // Use appliedFromYear/appliedToYear so typing does not immediately change layout
+  const filteredByYear = useMemo(() => {
+    if (!purchases) return [];
+    const fromRaw = appliedFromYear.trim();
+    const toRaw = appliedToYear.trim();
+    const fromParsed = fromRaw !== "" ? parseInt(fromRaw, 10) : NaN;
+    const toParsed = toRaw !== "" ? parseInt(toRaw, 10) : NaN;
+    const from = !Number.isNaN(fromParsed) ? fromParsed : null;
+    const to = !Number.isNaN(toParsed) ? toParsed : null;
+
+    return purchases.filter((purchase) => {
+      try {
+        const d = new Date(purchase.date);
+        if (isNaN(d.getTime())) return false; // skip invalid dates
+        const purchaseYear = d.getFullYear();
+        const afterFrom = from === null ? true : purchaseYear >= from;
+        const beforeTo = to === null ? true : purchaseYear <= to;
+        return afterFrom && beforeTo;
+      } catch {
+        return false;
+      }
+    });
+  }, [purchases, appliedFromYear, appliedToYear]);
+
+  // fullPrices: all prices within selected years (preserve original order and duplicates)
+  const fullPrices = useMemo(() =>
+    filteredByYear
+      .map((p) => Number(p.price))
+      .filter((v) => Number.isFinite(v)),
+    [filteredByYear]
+  );
+
+  // intervalPricesRaw: dati originali dopo selezione intervallo (usati per visualizzazione e per calcolare Z-score)
+  const intervalPricesRaw = useMemo(() => {
+    if (interval === "all") return fullPrices;
+    if (typeof interval === "number") {
+      return fullPrices.slice(-interval);
+    }
+    return fullPrices;
+  }, [fullPrices, interval]);
+
+  // Calcola Z-score per individuare outlier e costruisce intervalPrices filtrati se removeOutliers=true
+  const { intervalPrices, outlierFlags } = useMemo(() => {
+    if (!intervalPricesRaw || intervalPricesRaw.length === 0) {
+      return { intervalPrices: intervalPricesRaw, outlierFlags: [] };
+    }
+
+    const m = mean(intervalPricesRaw);
+    const s = std(intervalPricesRaw);
+
+    const flags = intervalPricesRaw.map((p) => {
+      if (s === 0) return false; // deviazione nulla -> nessun outlier
+      const z = Math.abs((p - m) / s);
+      return z > 2;
+    });
+
+    const filtered = removeOutliers ? intervalPricesRaw.filter((_, i) => !flags[i]) : intervalPricesRaw;
+
+    return { intervalPrices: filtered, outlierFlags: flags };
+  }, [intervalPricesRaw, removeOutliers]);
+
+  // Calcola regressione per outlier e PDF (include R² confidence)
   const regression = useMemo(() => {
-    if (!filteredPrices) return null;
-    return linearRegression(filteredPrices);
-  }, [filteredPrices]);
+    if (!intervalPrices || intervalPrices.length === 0) return null;
+    const base = linearRegression(intervalPrices);
+    if (!base) return null;
+    // compute R² using the same x=1..n mapping used in linearRegression
+    const n = intervalPrices.length;
+    const meanY = intervalPrices.reduce((a, b) => a + b, 0) / n;
+    const ssTot = intervalPrices.reduce((acc, yi) => acc + (yi - meanY) ** 2, 0);
+    const ssRes = intervalPrices.reduce((acc, yi, i) => {
+      const yiPred = base.a + base.b * (i + 1);
+      return acc + (yi - yiPred) ** 2;
+    }, 0);
+    const r2 = ssTot === 0 ? 1 : Math.max(0, Math.min(1, 1 - ssRes / ssTot));
+    return { ...base, r2 };
+  }, [intervalPrices]);
 
   // Outlier: solo il nuovo prezzo offerto se supera ±5% dal prezzo atteso
   const isNewPriceOutlier = useMemo(() => {
@@ -96,20 +224,20 @@ export default function Home() {
 
   // Calcola statistiche per il PDF
   const stats = useMemo(() => {
-    if (!filteredPrices) return null;
-    const { q1, q3 } = quartiles(filteredPrices);
+    if (!intervalPrices || intervalPrices.length === 0) return null;
+    const { q1, q3 } = quartiles(intervalPrices);
     return {
-      mean: mean(filteredPrices),
-      median: median(filteredPrices),
-      std: std(filteredPrices),
-      variance: variance(filteredPrices),
-      min: Math.min(...filteredPrices),
-      max: Math.max(...filteredPrices),
+      mean: mean(intervalPrices),
+      median: median(intervalPrices),
+      std: std(intervalPrices),
+      variance: variance(intervalPrices),
+      min: Math.min(...intervalPrices),
+      max: Math.max(...intervalPrices),
       q1,
       q3,
-      iqr: iqr(filteredPrices),
+      iqr: iqr(intervalPrices),
     };
-  }, [filteredPrices]);
+  }, [intervalPrices]);
 
   // Handler per l'input personalizzato
   const handleCustomIntervalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,7 +246,7 @@ export default function Home() {
 
   const applyCustomInterval = () => {
     const val = parseInt(customInterval, 10);
-    if (!isNaN(val) && val > 0 && prices && val <= prices.length) {
+    if (!isNaN(val) && val > 0 && fullPrices && val <= fullPrices.length) {
       setInterval(val);
     }
   };
@@ -133,8 +261,8 @@ export default function Home() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--background)]">
       <main className="w-full max-w-2xl mx-auto flex flex-col items-center justify-center">
         <h1 className="section-title mb-12">Price Prediction Model Analysis</h1>
-        <PriceHistoryUpload onUpload={setPrices} />
-        {prices && filteredPrices && (
+        <PriceHistoryUpload onUpload={handleUpload} />
+        {purchases && (
           <div className="card w-full max-w-xl mx-auto flex flex-col items-center">
             {/* Selezione intervallo */}
             <div className="flex flex-wrap gap-2 mb-2 items-center justify-center">
@@ -144,8 +272,8 @@ export default function Home() {
                   key={String(opt)}
                   className={`px-4 py-1 rounded-full text-sm font-medium transition-all border ${interval === opt ? "bg-blue-500 text-white border-blue-500" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700"}`}
                   onClick={() => { setInterval(opt as number | "all"); setCustomInterval(""); }}
-                  disabled={typeof opt === "number" && prices.length < opt}
-                  style={{ opacity: typeof opt === "number" && prices.length < opt ? 0.5 : 1 }}
+                  disabled={typeof opt === "number" && filteredByYear.length < opt}
+                  style={{ opacity: typeof opt === "number" && filteredByYear.length < opt ? 0.5 : 1 }}
                 >
                   {opt === "all" ? "Tutti" : `Ultimi ${opt}`}
                 </button>
@@ -156,18 +284,18 @@ export default function Home() {
               <input
                 type="number"
                 min={1}
-                max={prices.length}
+                max={filteredByYear.length}
                 value={customInterval}
                 onChange={handleCustomIntervalChange}
                 onKeyDown={handleCustomIntervalKeyDown}
-                placeholder={`Personalizzato (1-${prices.length})`}
+                placeholder={`Personalizzato (1-${filteredByYear.length})`}
                 className="input w-44 text-center text-sm py-1 px-2"
               />
               <button
                 type="button"
                 className="px-4 py-1 rounded-full text-sm font-medium transition-all border bg-blue-500 text-white border-blue-500"
                 onClick={applyCustomInterval}
-                disabled={!customInterval || isNaN(parseInt(customInterval, 10)) || parseInt(customInterval, 10) < 1 || parseInt(customInterval, 10) > prices.length}
+                disabled={!customInterval || isNaN(parseInt(customInterval, 10)) || parseInt(customInterval, 10) < 1 || parseInt(customInterval, 10) > filteredByYear.length}
               >
                 Applica
               </button>
@@ -178,40 +306,100 @@ export default function Home() {
               )}
             </div>
             <h2 className="label text-lg mb-6">Storico prezzi caricato</h2>
-            <div className="flex flex-wrap gap-3 text-lg mb-8">
-              {filteredPrices.map((p, i) => (
+            <div className="flex flex-wrap gap-3 text-lg mb-2">
+              {intervalPricesRaw.map((price, i) => (
                 <span
                   key={i}
-                  className="px-4 py-1 rounded-full shadow-sm font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                  className={`px-4 py-1 rounded-full shadow-sm font-medium ${
+                    outlierFlags[i]
+                      ? 'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100 ring-1 ring-red-400'
+                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
+                  }`}
                   style={{ fontVariantNumeric: "tabular-nums" }}
                 >
-                  {p}
+                  {price}
                 </span>
               ))}
             </div>
-            <StatisticsPanel prices={filteredPrices} />
-            <div className="mt-2 mb-4 px-4 py-3 bg-blue-50/80 dark:bg-blue-900/60 rounded-lg text-blue-800 dark:text-blue-100 text-lg font-medium shadow-sm w-full text-center">
-              <span className="font-medium">Media: </span>
-              {(
-                filteredPrices.reduce((acc, val) => acc + val, 0) / filteredPrices.length
-              ).toFixed(2)}
+
+            {/* Toggle Z-score: sotto lo storico prezzi e sopra le statistiche */}
+            <div className="w-full flex items-center justify-center mb-6">
+              <label className="flex items-center gap-4 cursor-pointer px-3 py-2 rounded-lg border-2 border-zinc-300 dark:border-zinc-600 bg-white/60 dark:bg-black/40">
+                <input
+                  type="checkbox"
+                  checked={removeOutliers}
+                  onChange={(e) => setRemoveOutliers(e.target.checked)}
+                  className="w-6 h-6 rounded-sm cursor-pointer border-2 border-zinc-400 dark:border-zinc-500 text-red-600 focus:outline-none"
+                  aria-label="Rimuovi outlier (Z-score)"
+                />
+                <span className="text-base font-semibold text-zinc-800 dark:text-zinc-100">Rimuovi outlier (|Z| {'>'} 2)</span>
+              </label>
             </div>
-            <LinearRegressionResult prices={filteredPrices} />
-            <NewPriceDeviation 
-              prices={filteredPrices} 
-              isNewPriceOutlier={isNewPriceOutlier}
-              onDeviationChange={(price, dev) => {
-                setNewPrice(price);
-                setDeviation(dev);
-              }}
-            />
-            {stats && (
+
+            {intervalPrices && intervalPrices.length > 0 ? (
+              <>
+                <StatisticsPanel prices={intervalPrices} />
+                <LinearRegressionResult prices={intervalPrices} />
+              </>
+            ) : (
+              <div className="mt-2 mb-4 px-4 py-3 rounded-lg text-zinc-500 text-sm w-full text-center">
+                Nessun dato sufficiente per calcolare statistiche e regressione.
+              </div>
+            )}
+            <div className="flex flex-col gap-2 mb-6 items-center justify-center">
+              <h2 className="label text-lg">Seleziona intervallo anni</h2>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="number"
+                  placeholder="Anno da"
+                  value={fromYear}
+                  onChange={(e) => setFromYear(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); } }}
+                  onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); } }}
+                  className="input input-bordered w-full"
+                />
+                <input
+                  type="number"
+                  placeholder="Anno a"
+                  value={toYear}
+                  onChange={(e) => setToYear(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); } }}
+                  onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); } }}
+                  className="input input-bordered w-full"
+                />
+                <button
+                  type="button"
+                  onClick={handleYearFilter}
+                  className="ml-2 px-4 py-1 rounded-full text-sm font-medium transition-all border bg-blue-500 text-white border-blue-500"
+                >
+                  Applica
+                </button>
+              </div>
+              {invalidYearRange && (
+                <div className="text-red-500 text-sm mt-2">
+                  Intervallo anni non valido. Assicurati che "Anno da" sia minore o uguale a "Anno a".
+                </div>
+              )}
+            </div>
+            {intervalPrices && intervalPrices.length > 0 && (
+              <NewPriceDeviation 
+                prices={intervalPrices} 
+                isNewPriceOutlier={isNewPriceOutlier}
+                onDeviationChange={(price, dev) => {
+                  setNewPrice(price);
+                  setDeviation(dev);
+                }}
+              />
+            )}
+            {stats && intervalPrices && intervalPrices.length > 0 && (
               <DownloadPdfButton
-                prices={filteredPrices}
+                prices={intervalPrices}
                 stats={stats}
                 regression={regression}
                 newPrice={newPrice}
                 deviation={deviation}
+                fromYear={appliedFromYear || null}
+                toYear={appliedToYear || null}
               />
             )}
           </div>

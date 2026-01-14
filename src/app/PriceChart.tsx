@@ -19,6 +19,7 @@ interface PriceChartProps {
   regression: { a: number; b: number; predicted: number } | null;
   newPrice: number | null;
   isNewPriceOutlier?: boolean;
+  dates?: string[]; // ISO date strings corresponding to each historic price
 }
 
 function getStdDev(arr: number[]) {
@@ -28,7 +29,7 @@ function getStdDev(arr: number[]) {
   return stdDev;
 }
 
-export default function PriceChart({ prices, regression, newPrice, isNewPriceOutlier = false }: PriceChartProps) {
+export default function PriceChart({ prices, regression, newPrice, isNewPriceOutlier = false, dates = [] }: PriceChartProps) {
   const n = prices.length;
   const labels = Array.from({ length: n + 1 }, (_, i) => (i + 1).toString());
   // Serie storica
@@ -153,10 +154,28 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
         enabled: true,
         callbacks: {
           label: function (context: any) {
-            if (context.dataset.label === "Differenziale" && diffAbs !== null && diffPerc !== null) {
+            const label = context.dataset.label;
+            const value = context.parsed.y;
+            const idx = context.dataIndex;
+            const dateStr = Array.isArray(dates) && dates[idx] ? dates[idx] : null;
+            const formattedValue = (typeof value === 'number') ? value.toFixed(2) : value;
+
+            if (label === "Differenziale" && diffAbs !== null && diffPerc !== null) {
               return `Differenziale: ${diffAbs.toFixed(2)} (${diffPerc.toFixed(2)}%)`;
             }
-            return `${context.dataset.label}: ${context.parsed.y}`;
+
+            if (dateStr) {
+              const d = new Date(dateStr);
+              const formattedDate = isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('it-IT');
+              if (label === "Storico prezzi") {
+                return [`Storico prezzi: ${formattedValue}`, `Data: ${formattedDate}`];
+              }
+              if (label === "Retta regressione") {
+                return [`Retta regressione: ${formattedValue}`, `Data: ${formattedDate}`];
+              }
+            }
+
+            return `${label}: ${formattedValue}`;
           },
         },
       },

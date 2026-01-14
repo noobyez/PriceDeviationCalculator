@@ -1,9 +1,10 @@
 "use client";
 import React, { useRef, useState, DragEvent } from "react";
 import * as XLSX from "xlsx";
+import { Purchase } from "../models/Purchase"; // Importing the Purchase model
 
 interface PriceHistoryUploadProps {
-  onUpload: (prices: number[]) => void;
+  onUpload: (purchases: Purchase[]) => void;
 }
 
 export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps) {
@@ -11,32 +12,6 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
-
-  const parseExcel = (buffer: ArrayBuffer): number[] => {
-    const workbook = XLSX.read(buffer, { type: "array" });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const data: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-    // Estrai tutti i numeri dal foglio (prima colonna o tutte le celle)
-    const prices: number[] = [];
-    for (const row of data) {
-      for (const cell of row) {
-        const num = typeof cell === "number" ? cell : parseFloat(String(cell).replace(",", "."));
-        if (!isNaN(num)) prices.push(num);
-      }
-    }
-    return prices;
-  };
-
-  // Funzione per estrarre testo puro da RTF
-  const parseRtf = (rtfText: string): string => {
-    // Rimuove i tag RTF e restituisce solo il testo
-    return rtfText
-      .replace(/\\par[d]?/g, "\n") // nuove righe
-      .replace(/\{\*?\\[^{}]+}|[{}]|\\[A-Za-z]+\n?(?:-?\d+)?[ ]?/g, "") // rimuove comandi RTF
-      .replace(/\\'([0-9a-fA-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // caratteri speciali
-      .trim();
-  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -49,35 +24,105 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
     setFileName(file.name);
     const ext = file.name.split(".").pop()?.toLowerCase();
     try {
-      let prices: number[] = [];
+      let purchases: Purchase[] = [];
       if (ext === "xlsx" || ext === "xls") {
         const buffer = await file.arrayBuffer();
-        prices = parseExcel(buffer);
-      } else if (ext === "rtf") {
-        // File RTF (TextEdit Mac)
-        const rtfText = await file.text();
-        const plainText = parseRtf(rtfText);
-        prices = plainText
-          .split(/[\n,;]+/)
-          .map((v) => v.trim())
-          .filter((v) => v.length > 0)
-          .map((v) => parseFloat(v.replace(",", ".")))
-          .filter((n) => !isNaN(n));
+        purchases = parseExcel(buffer);
       } else {
-        // CSV, TXT o altri formati testuali
         const text = await file.text();
-        prices = text
-          .split(/[\n,;]+/)
-          .map((v) => v.trim())
-          .filter((v) => v.length > 0)
-          .map((v) => parseFloat(v.replace(",", ".")))
-          .filter((n) => !isNaN(n));
+        purchases = parseTextFile(text);
       }
-      if (prices.length === 0) throw new Error("Nessun prezzo valido trovato nel file.");
-      onUpload(prices);
+      if (purchases.length === 0) throw new Error("Nessun dato valido trovato nel file.");
+      onUpload(purchases);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Errore durante la lettura del file.");
     }
+  };
+
+  const parseExcel = (buffer: ArrayBuffer): Purchase[] => {
+    const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const data: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
+
+    const purchases: Purchase[] = [];
+    for (const row of data) {
+      const quantity = typeof row[0] === "number" ? row[0] : parseFloat(String(row[0]).replace(",", "."));
+
+      // Normalize date from different possible cell types (string, number, Date)
+      let dateValue: string | null = null;
+      const cell = row[1];
+
+      if (typeof cell === "string") {
+        const s = cell.trim();
+        const standardized = s.replace(/\//g, "-");
+        const m = standardized.match(/^(\d{1,2})-(\d{1,2})-(\d{2}|\d{4})$/);
+        if (m) {
+          const day = m[1].padStart(2, "0");
+          const month = m[2].padStart(2, "0");
+          let year = m[3];
+          if (year.length === 2) year = `20${year}`;
+          const iso = `${year}-${month}-${day}`; // YYYY-MM-DD
+          const d = new Date(iso);
+          if (!isNaN(d.getTime())) dateValue = d.toISOString();
+        } else {
+          const d = new Date(standardized);
+          if (!isNaN(d.getTime())) dateValue = d.toISOString();
+        }
+      } else if (cell instanceof Date) {
+        dateValue = cell.toISOString();
+      } else if (typeof cell === "number") {
+        // Excel stores dates as serial numbers; use XLSX utility to parse
+        try {
+          const dc = (XLSX as any).SSF.parse_date_code(cell);
+          if (dc && dc.y) {
+            const d = new Date(dc.y, dc.m - 1, dc.d);
+            dateValue = d.toISOString();
+          }
+        } catch {
+          // fallback: attempt JS conversion (most spreadsheets use 25569 offset)
+          const jsDate = new Date(Math.round((cell - 25569) * 86400 * 1000));
+          if (!isNaN(jsDate.getTime())) dateValue = jsDate.toISOString();
+        }
+      }
+
+      if (!isNaN(quantity) && dateValue) {
+        purchases.push({ price: quantity, date: dateValue });
+      }
+    }
+    return purchases;
+  };
+
+  const parseTextFile = (text: string): Purchase[] => {
+    const parseDateString = (s: string | undefined | null): string | null => {
+      if (!s) return null;
+      const standardized = s.trim().replace(/\//g, "-");
+      const m = standardized.match(/^(\d{1,2})-(\d{1,2})-(\d{2}|\d{4})$/);
+      if (m) {
+        const day = m[1].padStart(2, "0");
+        const month = m[2].padStart(2, "0");
+        let year = m[3];
+        if (year.length === 2) year = `20${year}`;
+        const iso = `${year}-${month}-${day}`; // YYYY-MM-DD
+        const d = new Date(iso);
+        if (!isNaN(d.getTime())) return d.toISOString();
+      }
+      const d2 = new Date(standardized);
+      if (!isNaN(d2.getTime())) return d2.toISOString();
+      return null;
+    };
+
+    return text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => {
+        const [quantityRaw, dateRaw] = line.split(/[,;\t]+/).map((v) => v.trim());
+        const parsedQuantity = parseFloat(String(quantityRaw).replace(",", "."));
+        const parsedDate = parseDateString(dateRaw);
+        return !isNaN(parsedQuantity) && parsedDate ? { price: parsedQuantity, date: parsedDate } : null;
+      })
+      .filter((item): item is Purchase => item !== null);
   };
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
