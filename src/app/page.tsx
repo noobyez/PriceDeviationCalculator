@@ -273,13 +273,13 @@ export default function Home() {
             </div>
             <h2 className="label text-lg mb-6">Storico prezzi caricato</h2>
             <div className="flex flex-wrap gap-3 text-lg mb-8">
-              {filteredByYear.map((purchase, i) => (
+              {intervalPrices.map((price, i) => (
                 <span
                   key={i}
                   className="px-4 py-1 rounded-full shadow-sm font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                   style={{ fontVariantNumeric: "tabular-nums" }}
                 >
-                  {purchase.price}
+                  {price}
                 </span>
               ))}
             </div>
