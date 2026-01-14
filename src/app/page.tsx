@@ -174,10 +174,21 @@ export default function Home() {
     return fullPrices;
   }, [fullPrices, interval]);
 
-  // Calcola regressione per outlier e PDF
+  // Calcola regressione per outlier e PDF (include R² confidence)
   const regression = useMemo(() => {
     if (!intervalPrices || intervalPrices.length === 0) return null;
-    return linearRegression(intervalPrices);
+    const base = linearRegression(intervalPrices);
+    if (!base) return null;
+    // compute R² using the same x=1..n mapping used in linearRegression
+    const n = intervalPrices.length;
+    const meanY = intervalPrices.reduce((a, b) => a + b, 0) / n;
+    const ssTot = intervalPrices.reduce((acc, yi) => acc + (yi - meanY) ** 2, 0);
+    const ssRes = intervalPrices.reduce((acc, yi, i) => {
+      const yiPred = base.a + base.b * (i + 1);
+      return acc + (yi - yiPred) ** 2;
+    }, 0);
+    const r2 = ssTot === 0 ? 1 : Math.max(0, Math.min(1, 1 - ssRes / ssTot));
+    return { ...base, r2 };
   }, [intervalPrices]);
 
   // Outlier: solo il nuovo prezzo offerto se supera ±5% dal prezzo atteso
@@ -351,6 +362,8 @@ export default function Home() {
                 regression={regression}
                 newPrice={newPrice}
                 deviation={deviation}
+                fromYear={appliedFromYear || null}
+                toYear={appliedToYear || null}
               />
             )}
           </div>

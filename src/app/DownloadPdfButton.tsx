@@ -18,9 +18,11 @@ interface DownloadPdfButtonProps {
     q3: number;
     iqr: number;
   };
-  regression: { a: number; b: number; predicted: number } | null;
+  regression: { a: number; b: number; predicted: number; r2?: number } | null;
   newPrice: number | null;
   deviation: { abs: number; perc: number } | null;
+  fromYear?: string | null;
+  toYear?: string | null;
 }
 
 export default function DownloadPdfButton({
@@ -29,6 +31,8 @@ export default function DownloadPdfButton({
   regression,
   newPrice,
   deviation,
+  fromYear,
+  toYear,
 }: DownloadPdfButtonProps) {
   const handleDownload = async () => {
     const doc = new jsPDF();
@@ -44,13 +48,19 @@ export default function DownloadPdfButton({
     doc.setTextColor(100);
     doc.text(`Report generato il ${new Date().toLocaleDateString("it-IT")}`, pageWidth / 2, 28, { align: "center" });
 
+    // Anni usati per l'analisi
+    doc.setFontSize(10);
+    doc.setTextColor(50);
+    const yearsLabel = (fromYear && toYear) ? `${fromYear} - ${toYear}` : (fromYear ? `${fromYear} -` : (toYear ? `- ${toYear}` : "Tutti"));
+    doc.text(`Anni analizzati: ${yearsLabel}`, 14, 36);
+
     // Statistiche
     doc.setFontSize(14);
     doc.setTextColor(0);
-    doc.text("Statistiche descrittive", 14, 42);
+    doc.text("Statistiche descrittive", 14, 46);
 
     autoTable(doc, {
-      startY: 46,
+      startY: 50,
       head: [["Metrica", "Valore"]],
       body: [
         ["Prezzo medio", stats.mean.toFixed(2)],
@@ -68,7 +78,7 @@ export default function DownloadPdfButton({
     });
 
     // Regressione
-    const afterStatsY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 100;
+    const afterStatsY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 110;
     doc.setFontSize(14);
     doc.text("Regressione lineare", 14, afterStatsY + 10);
     if (regression) {
@@ -76,13 +86,16 @@ export default function DownloadPdfButton({
       doc.text(`Prezzo atteso (prossimo periodo): ${regression.predicted.toFixed(2)}`, 14, afterStatsY + 18);
       doc.text(`Coefficiente a: ${regression.a.toFixed(4)}`, 14, afterStatsY + 25);
       doc.text(`Coefficiente b: ${regression.b.toFixed(4)}`, 14, afterStatsY + 32);
+      if (typeof regression.r2 === 'number') {
+        doc.text(`Confidenza modello (R²): ${(regression.r2 * 100).toFixed(2)}%`, 14, afterStatsY + 40);
+      }
     } else {
       doc.setFontSize(11);
       doc.text("Dati insufficienti per la regressione.", 14, afterStatsY + 18);
     }
 
     // Scostamento
-    let deviationY = afterStatsY + 42;
+    let deviationY = afterStatsY + 58;
     doc.setFontSize(14);
     doc.text("Analisi scostamento", 14, deviationY);
     if (newPrice !== null && deviation) {
