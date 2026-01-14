@@ -297,12 +297,6 @@ export default function Home() {
             {intervalPrices && intervalPrices.length > 0 ? (
               <>
                 <StatisticsPanel prices={intervalPrices} />
-                <div className="mt-2 mb-4 px-4 py-3 bg-blue-50/80 dark:bg-blue-900/60 rounded-lg text-blue-800 dark:text-blue-100 text-lg font-medium shadow-sm w-full text-center">
-                  <span className="font-medium">Media: </span>
-                  {(
-                    intervalPrices.reduce((acc, val) => acc + val, 0) / intervalPrices.length
-                  ).toFixed(2)}
-                </div>
                 <LinearRegressionResult prices={intervalPrices} />
               </>
             ) : (
