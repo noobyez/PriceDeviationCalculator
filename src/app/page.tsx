@@ -6,6 +6,7 @@ import PriceChart from "./PriceChart";
 import StatisticsPanel from "./StatisticsPanel";
 import DownloadPdfButton from "./DownloadPdfButton";
 import { useState, useMemo } from "react";
+import { Purchase } from "../models/Purchase";
 
 // Funzioni statistiche
 function mean(arr: number[]) {
@@ -67,18 +68,23 @@ function getOutlierBounds(arr: number[]) {
 }
 
 export default function Home() {
-  const [prices, setPrices] = useState<number[] | null>(null);
+  const [purchases, setPurchases] = useState<Purchase[] | null>(null);
   const [interval, setInterval] = useState<number | "all">("all");
   const [customInterval, setCustomInterval] = useState<string>("");
   const [newPrice, setNewPrice] = useState<number | null>(null);
   const [deviation, setDeviation] = useState<{ abs: number; perc: number } | null>(null);
 
+  const handleUpload = (uploadedPurchases: Purchase[]) => {
+    setPurchases(uploadedPurchases);
+  };
+
   // Calcola i prezzi filtrati in base all'intervallo selezionato
   const filteredPrices = useMemo(() => {
-    if (!prices) return null;
+    if (!purchases) return null;
+    const prices = purchases.map((purchase) => purchase.price);
     if (interval === "all") return prices;
     return prices.slice(-interval);
-  }, [prices, interval]);
+  }, [purchases, interval]);
 
   // Calcola regressione per outlier e PDF
   const regression = useMemo(() => {
@@ -118,7 +124,7 @@ export default function Home() {
 
   const applyCustomInterval = () => {
     const val = parseInt(customInterval, 10);
-    if (!isNaN(val) && val > 0 && prices && val <= prices.length) {
+    if (!isNaN(val) && val > 0 && filteredPrices && val <= filteredPrices.length) {
       setInterval(val);
     }
   };
@@ -133,8 +139,8 @@ export default function Home() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--background)]">
       <main className="w-full max-w-2xl mx-auto flex flex-col items-center justify-center">
         <h1 className="section-title mb-12">Price Prediction Model Analysis</h1>
-        <PriceHistoryUpload onUpload={setPrices} />
-        {prices && filteredPrices && (
+        <PriceHistoryUpload onUpload={handleUpload} />
+        {purchases && filteredPrices && (
           <div className="card w-full max-w-xl mx-auto flex flex-col items-center">
             {/* Selezione intervallo */}
             <div className="flex flex-wrap gap-2 mb-2 items-center justify-center">
@@ -144,8 +150,8 @@ export default function Home() {
                   key={String(opt)}
                   className={`px-4 py-1 rounded-full text-sm font-medium transition-all border ${interval === opt ? "bg-blue-500 text-white border-blue-500" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700"}`}
                   onClick={() => { setInterval(opt as number | "all"); setCustomInterval(""); }}
-                  disabled={typeof opt === "number" && prices.length < opt}
-                  style={{ opacity: typeof opt === "number" && prices.length < opt ? 0.5 : 1 }}
+                  disabled={typeof opt === "number" && filteredPrices.length < opt}
+                  style={{ opacity: typeof opt === "number" && filteredPrices.length < opt ? 0.5 : 1 }}
                 >
                   {opt === "all" ? "Tutti" : `Ultimi ${opt}`}
                 </button>
@@ -156,18 +162,18 @@ export default function Home() {
               <input
                 type="number"
                 min={1}
-                max={prices.length}
+                max={filteredPrices.length}
                 value={customInterval}
                 onChange={handleCustomIntervalChange}
                 onKeyDown={handleCustomIntervalKeyDown}
-                placeholder={`Personalizzato (1-${prices.length})`}
+                placeholder={`Personalizzato (1-${filteredPrices.length})`}
                 className="input w-44 text-center text-sm py-1 px-2"
               />
               <button
                 type="button"
                 className="px-4 py-1 rounded-full text-sm font-medium transition-all border bg-blue-500 text-white border-blue-500"
                 onClick={applyCustomInterval}
-                disabled={!customInterval || isNaN(parseInt(customInterval, 10)) || parseInt(customInterval, 10) < 1 || parseInt(customInterval, 10) > prices.length}
+                disabled={!customInterval || isNaN(parseInt(customInterval, 10)) || parseInt(customInterval, 10) < 1 || parseInt(customInterval, 10) > filteredPrices.length}
               >
                 Applica
               </button>
