@@ -323,7 +323,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={handleYearFilter}
-                  className="btn btn-primary px-2 py-1 text-xs"
+                  className="ml-2 px-4 py-1 rounded-full text-sm font-medium transition-all border bg-blue-500 text-white border-blue-500"
                 >
                   Applica
                 </button>
