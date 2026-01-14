@@ -1,9 +1,6 @@
 "use client";
 import React from "react";
-import jsPDF from "jspdf";
-// @ts-ignore: no type declarations for 'jspdf-autotable'
-import autoTable from "jspdf-autotable";
-import html2canvas from "html2canvas";
+// jspdf, jspdf-autotable and html2canvas will be dynamically imported in the handler to avoid SSR/build issues
 
 interface DownloadPdfButtonProps {
   prices: number[];
@@ -35,6 +32,15 @@ export default function DownloadPdfButton({
   toYear,
 }: DownloadPdfButtonProps) {
   const handleDownload = async () => {
+    // dynamic imports to ensure these run only in the browser runtime
+    const jspdfModule = await import("jspdf");
+    const jsPDF = jspdfModule.jsPDF ?? jspdfModule.default;
+    // load plugin and capture exported function
+    const autoTableModule = await import("jspdf-autotable");
+    const autoTable = (autoTableModule && (autoTableModule as any).default) || (autoTableModule as any);
+    const html2canvasModule = await import("html2canvas");
+    const html2canvas = html2canvasModule.default ?? html2canvasModule;
+
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -78,7 +84,7 @@ export default function DownloadPdfButton({
     });
 
     // Regressione
-    const afterStatsY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 110;
+    const afterStatsY = (doc as any).lastAutoTable?.finalY ?? 110;
     doc.setFontSize(14);
     doc.text("Regressione lineare", 14, afterStatsY + 10);
     if (regression) {
