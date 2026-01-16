@@ -57,38 +57,28 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({ prices }) => {
   const { q1, q3 } = quartiles(prices);
   const iqrVal = iqr(prices);
 
+  const StatItem = ({ label, value }: { label: string; value: string }) => (
+    <div className="flex flex-col">
+      <span className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">{label}</span>
+      <span className="text-base font-semibold text-zinc-800 dark:text-zinc-100" style={{ fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+    </div>
+  );
+
   return (
-    <div className="w-full mt-6 mb-8 p-6 card bg-[var(--surface)] shadow-sm rounded-2xl flex flex-col gap-3">
-      <div className="flex flex-wrap gap-4 justify-between">
-        <div>
-          <span className="font-medium">Prezzo medio:</span> {m.toFixed(2)}
-        </div>
-        <div>
-          <span className="font-medium">Mediana:</span> {med.toFixed(2)}
-        </div>
-        <div>
-          <span className="font-medium">Deviazione std:</span> {s.toFixed(2)}
-        </div>
-        <div>
-          <span className="font-medium">Varianza:</span> {v.toFixed(2)}
-        </div>
-      </div>
-      <div className="flex flex-wrap gap-4 justify-between">
-        <div>
-          <span className="font-medium">Min:</span> {minVal.toFixed(2)}
-        </div>
-        <div>
-          <span className="font-medium">Max:</span> {maxVal.toFixed(2)}
-        </div>
-        <div>
-          <span className="font-medium">Q1:</span> {q1.toFixed(2)}
-        </div>
-        <div>
-          <span className="font-medium">Q3:</span> {q3.toFixed(2)}
-        </div>
-        <div>
-          <span className="font-medium">IQR:</span> {iqrVal.toFixed(2)}
-        </div>
+    <div className="w-full p-4 bg-[var(--surface)] shadow-sm rounded-xl border border-zinc-100 dark:border-zinc-800">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
+        Statistiche
+      </h3>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <StatItem label="Media" value={m.toFixed(2)} />
+        <StatItem label="Mediana" value={med.toFixed(2)} />
+        <StatItem label="Dev. Std" value={s.toFixed(2)} />
+        <StatItem label="Min" value={minVal.toFixed(2)} />
+        <StatItem label="Max" value={maxVal.toFixed(2)} />
+        <StatItem label="Q1" value={q1.toFixed(2)} />
+        <StatItem label="Q3" value={q3.toFixed(2)} />
+        <StatItem label="IQR" value={iqrVal.toFixed(2)} />
+        <StatItem label="Varianza" value={v.toFixed(2)} />
       </div>
     </div>
   );

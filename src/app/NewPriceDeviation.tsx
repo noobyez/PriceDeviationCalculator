@@ -1,14 +1,15 @@
 "use client";
 import React, { useState } from "react";
-import LinearRegressionResult from "./LinearRegressionResult";
-import PriceChart from "./PriceChart";
 import { evaluateRdaPrice } from "../utils/rdaPriceAlert";
 import { generateDecisionBuckets } from "../utils/probabilisticForecast";
+import StatusCard from "../components/StatusCard";
+import SectionCard from "../components/SectionCard";
 
 interface NewPriceDeviationProps {
   prices: number[];
   isNewPriceOutlier?: boolean;
   onDeviationChange?: (price: number | null, deviation: { abs: number; perc: number } | null) => void;
+  onRdaResult?: (result: { status: "OK" | "WARNING" | "ALERT"; reasons: string[]; comment?: string } | null) => void;
 }
 
 function linearRegression(prices: number[]) {
@@ -29,14 +30,13 @@ function linearRegression(prices: number[]) {
   return { a, b, predicted };
 }
 
-export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, onDeviationChange }: NewPriceDeviationProps) {
+export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, onDeviationChange, onRdaResult }: NewPriceDeviationProps) {
   const [newPrice, setNewPrice] = useState<string>("");
   const [result, setResult] = useState<{ abs: number; perc: number } | null>(null);
-  const [lastPrice, setLastPrice] = useState<number | null>(null);
-  const [rdaAlert, setRdaAlert] = useState<{ status: "OK" | "WARNING" | "ALERT"; reasons: string[] } | null>(null);
   const [rdaPrice, setRdaPrice] = useState<string>("");
   const [rdaResult, setRdaResult] = useState<{ status: "OK" | "WARNING" | "ALERT"; reasons: string[]; comment?: string } | null>(null);
   const [decisionBuckets, setDecisionBuckets] = useState<{ label: string; min: number; max: number; probability: number; explanation: string }[] | null>(null);
+  
   const regression = linearRegression(prices);
   const prezzoAtteso = regression ? regression.predicted : null;
 
@@ -54,12 +54,7 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
     const abs = prezzo - prezzoAtteso;
     const perc = ((prezzo - prezzoAtteso) / prezzoAtteso) * 100;
     setResult({ abs, perc });
-    setLastPrice(prezzo);
     onDeviationChange?.(prezzo, { abs, perc });
-
-    // Valutazione stato RDA
-    const alertResult = evaluateRdaPrice(prices, prezzo, prezzoAtteso);
-    setRdaAlert(alertResult);
   };
 
   const handleRdaSubmit = (e: React.FormEvent) => {
@@ -67,11 +62,13 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
     if (!prezzoAtteso) return;
     const parsedRdaPrice = parseFloat(rdaPrice.replace(",", "."));
     if (isNaN(parsedRdaPrice)) {
-      setRdaResult(null); // Resetta il risultato in caso di input non valido
+      setRdaResult(null);
+      onRdaResult?.(null);
       return;
     }
-    const result = evaluateRdaPrice(prices, parsedRdaPrice, prezzoAtteso);
-    setRdaResult({ ...result }); // Usa un nuovo oggetto per forzare il re-render
+    const evalResult = evaluateRdaPrice(prices, parsedRdaPrice, prezzoAtteso);
+    setRdaResult({ ...evalResult });
+    onRdaResult?.({ ...evalResult });
 
     // Generate probabilistic forecast
     const buckets = generateDecisionBuckets(prices, prezzoAtteso);
@@ -79,83 +76,107 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
   };
 
   return (
-    <div className="mt-10">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <label className="label text-zinc-700 mb-1">Nuovo prezzo offerto dal fornitore:</label>
-        <input
-          type="number"
-          step="any"
-          value={newPrice}
-          onChange={handleChange}
-          className="input"
-          placeholder="Inserisci nuovo prezzo"
-          required
-        />
-        <button
-          type="submit"
-          className="btn mt-2"
-        >
-          Calcola scostamento
-        </button>
-      </form>
-      {result && (
-        <div className={`mt-6 p-4 rounded-lg text-lg font-medium shadow-sm text-center ${isNewPriceOutlier ? "bg-red-50/80 dark:bg-red-900/60 text-red-800 dark:text-red-100 ring-2 ring-red-400" : "bg-yellow-50/80 dark:bg-yellow-900/60 text-yellow-800 dark:text-yellow-100"}`}>
-          <div><span className="font-medium">Scostamento assoluto:</span> {result.abs.toFixed(2)}</div>
-          <div><span className="font-medium">Scostamento percentuale:</span> {result.perc.toFixed(2)}%</div>
-          {isNewPriceOutlier && (
-            <div className="mt-2 text-red-600 dark:text-red-300 font-semibold">⚠️ Outlier: oltre ±5% dal prezzo atteso</div>
-          )}
+    <div className="flex flex-col gap-4">
+      {/* Prezzo Atteso - Key reference point */}
+      {prezzoAtteso && (
+        <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-100 dark:border-blue-800">
+          <div className="text-xs text-blue-600 dark:text-blue-300 uppercase tracking-wide font-medium">
+            Prezzo Atteso (Trend)
+          </div>
+          <div className="text-2xl font-bold text-blue-700 dark:text-blue-200" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {prezzoAtteso.toFixed(2)}
+          </div>
         </div>
       )}
-      <PriceChart prices={prices} regression={regression} newPrice={result ? parseFloat(newPrice.replace(",", ".")) : null} isNewPriceOutlier={isNewPriceOutlier} />
-      <form onSubmit={handleRdaSubmit} className="flex flex-col gap-6 mt-6">
-        <label className="label text-zinc-700 mb-1">Prezzo RDA:</label>
-        <input
-          type="number"
-          step="any"
-          value={rdaPrice}
-          onChange={(e) => setRdaPrice(e.target.value)}
-          className="input"
-          placeholder="Inserisci prezzo RDA"
-          required
-        />
-        <button
-          type="submit"
-          className="btn mt-2"
-        >
-          Valuta RDA
-        </button>
-      </form>
+
+      {/* Nuovo prezzo offerto */}
+      <SectionCard title="Prezzo Offerto" compact>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <input
+            type="number"
+            step="any"
+            value={newPrice}
+            onChange={handleChange}
+            className="input w-full"
+            placeholder="Inserisci prezzo fornitore"
+            required
+          />
+          <button type="submit" className="btn w-full">
+            Calcola scostamento
+          </button>
+        </form>
+
+        {result && (
+          <div className={`mt-3 p-3 rounded-lg text-sm ${isNewPriceOutlier ? "bg-red-50 dark:bg-red-900/40 text-red-800 dark:text-red-100" : "bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"}`}>
+            <div className="flex justify-between">
+              <span>Scostamento:</span>
+              <span className="font-semibold" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {result.abs >= 0 ? "+" : ""}{result.abs.toFixed(2)} ({result.perc >= 0 ? "+" : ""}{result.perc.toFixed(1)}%)
+              </span>
+            </div>
+            {isNewPriceOutlier && (
+              <div className="mt-2 text-xs text-red-600 dark:text-red-300 font-medium">
+                ⚠ Supera la soglia ±5%
+              </div>
+            )}
+          </div>
+        )}
+      </SectionCard>
+
+      {/* Valutazione RDA - Main decision point */}
+      <SectionCard title="Valutazione RDA" subtitle="Inserisci il prezzo proposto per la valutazione" compact>
+        <form onSubmit={handleRdaSubmit} className="flex flex-col gap-3">
+          <input
+            type="number"
+            step="any"
+            value={rdaPrice}
+            onChange={(e) => setRdaPrice(e.target.value)}
+            className="input w-full"
+            placeholder="Prezzo RDA"
+            required
+          />
+          <button type="submit" className="btn w-full">
+            Valuta RDA
+          </button>
+        </form>
+      </SectionCard>
+
+      {/* RDA Status - Decision-first, most prominent element */}
       {rdaResult && (
-        <div
-          className={`mt-6 p-4 rounded-lg text-lg font-medium shadow-sm text-center ${
-            rdaResult.status === "ALERT"
-              ? "bg-red-50/80 dark:bg-red-900/60 text-red-800 dark:text-red-100 ring-2 ring-red-400"
-              : rdaResult.status === "WARNING"
-              ? "bg-yellow-50/80 dark:bg-yellow-900/60 text-yellow-800 dark:text-yellow-100"
-              : "bg-green-50/80 dark:bg-green-900/60 text-green-800 dark:text-green-100"
-          }`}
-        >
-          <div><span className="font-medium">Stato RDA:</span> {rdaResult?.status}</div>
-          {rdaResult?.reasons.map((reason, index) => (
-            <div key={index} className="text-sm mt-1">{reason}</div>
-          ))}
-          <div className="mt-4 text-sm text-gray-700 dark:text-gray-300">{rdaResult.comment}</div>
-        </div>
+        <StatusCard
+          status={rdaResult.status}
+          reasons={rdaResult.reasons}
+          comment={rdaResult.comment}
+        />
       )}
+
+      {/* Probabilistic Buckets - Collapsible/secondary info */}
       {decisionBuckets && (
-        <div className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <SectionCard title="Analisi Probabilistica" compact>
+          <div className="grid grid-cols-2 gap-2">
             {decisionBuckets.map((bucket, index) => (
-              <div key={index} className="border p-4 rounded shadow">
-                <h4 className="font-semibold">{bucket.label}</h4>
-                <p>Intervallo Prezzi: {bucket.min === -Infinity ? "< " : ""}{bucket.min !== -Infinity ? bucket.min.toFixed(2) : ""} - {bucket.max === Infinity ? "> " : ""}{bucket.max !== Infinity ? bucket.max.toFixed(2) : ""}</p>
-                <p>Probabilità: {bucket.probability}%</p>
-                <p>{bucket.explanation}</p>
+              <div 
+                key={index} 
+                className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700"
+              >
+                <div className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 mb-1">
+                  {bucket.label}
+                </div>
+                <div className="text-lg font-bold text-zinc-800 dark:text-zinc-100">
+                  {bucket.probability}%
+                </div>
+                <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                  {bucket.min !== -Infinity && bucket.max !== Infinity 
+                    ? `${bucket.min.toFixed(0)} - ${bucket.max.toFixed(0)}`
+                    : bucket.min === -Infinity 
+                      ? `< ${bucket.max.toFixed(0)}`
+                      : `> ${bucket.min.toFixed(0)}`
+                  }
+                </div>
               </div>
             ))}
           </div>
-        </div>
+        </SectionCard>
       )}
     </div>
   );

@@ -162,10 +162,15 @@ export default function DownloadPdfButton({
   return (
     <button
       type="button"
-      className="px-4 py-1 rounded-full text-sm font-medium transition-all border bg-green-500 text-white border-green-500 hover:bg-green-600 mt-4"
+      className="w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-all bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm flex items-center justify-center gap-2"
       onClick={handleDownload}
     >
-      Scarica PDF
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Scarica Report PDF
     </button>
   );
 }

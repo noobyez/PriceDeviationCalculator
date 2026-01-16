@@ -38,18 +38,43 @@ function linearRegression(prices: number[]): { a: number; b: number; predicted: 
 export default function LinearRegressionResult({ prices }: LinearRegressionResultProps) {
   const result = linearRegression(prices);
   if (!result) return null;
+
+  // Determine confidence level for visual feedback
+  const confidenceLevel = result.r2 >= 0.7 ? 'high' : result.r2 >= 0.4 ? 'medium' : 'low';
+  const confidenceColors = {
+    high: 'text-emerald-600 dark:text-emerald-400',
+    medium: 'text-amber-600 dark:text-amber-400',
+    low: 'text-red-600 dark:text-red-400',
+  };
+
   return (
-    <div className="mt-2 p-3 bg-green-50 rounded text-green-800 dark:bg-green-900 dark:text-green-100">
-      <span className="font-medium">Prezzo atteso secondo trend storico: </span>
-      {result.predicted.toFixed(2)}
-      <div className="text-sm text-green-700 dark:text-green-200 mt-1">
-        <span className="font-medium">Confidenza modello (R²): </span>
-        {(result.r2 * 100).toFixed(2)}%
+    <div className="flex flex-col gap-3">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        Analisi Trend
+      </h3>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <div className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+            Prezzo Atteso
+          </div>
+          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {result.predicted.toFixed(2)}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+            Confidenza (R²)
+          </div>
+          <div className={`text-2xl font-bold ${confidenceColors[confidenceLevel]}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {(result.r2 * 100).toFixed(1)}%
+          </div>
+        </div>
       </div>
-      {/* Short, non-technical explanation for R² */}
-      <div className="text-xs text-green-700 dark:text-green-200 mt-1 italic">
-        R² indica quanto i prezzi storici seguono un andamento coerente: più è alto, più il trend è probabile e affidabile.
-      </div>
+
+      <p className="text-xs text-zinc-500 dark:text-zinc-400 italic">
+        R² indica quanto i prezzi storici seguono un andamento coerente: più è alto, più il trend è affidabile.
+      </p>
     </div>
   );
 }

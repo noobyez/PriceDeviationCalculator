@@ -7,7 +7,6 @@ import StatisticsPanel from "./StatisticsPanel";
 import DownloadPdfButton from "./DownloadPdfButton";
 import { useState, useMemo } from "react";
 import { Purchase } from "../models/Purchase";
-import { generateDecisionBuckets } from "../utils/probabilisticForecast";
 
 // Funzioni statistiche
 function mean(arr: number[]) {
@@ -82,8 +81,6 @@ export default function Home() {
 
   // Toggle per rimuovere valori outlier identificati tramite Z-score (|Z| > 2)
   const [removeOutliers, setRemoveOutliers] = useState<boolean>(false);
-
-  const [decisionBuckets, setDecisionBuckets] = useState<{ label: string; min: number; max: number; probability: number; explanation: string }[] | null>(null);
 
   const handleUpload = (uploadedPurchases: Purchase[]) => {
     try {
@@ -260,68 +257,66 @@ export default function Home() {
     }
   };
 
-  const handleDecisionBucketsCalculation = () => {
-    if (!purchases || purchases.length < 2) return;
-
-    const prices = purchases.map((p) => p.price);
-    const regression = linearRegression(prices);
-    if (!regression) return;
-
-    const predictedPrice = regression.predicted;
-    const buckets = generateDecisionBuckets(prices, predictedPrice);
-    setDecisionBuckets(buckets);
-  };
-
   return (
-    <div className="w-full bg-[var(--background)] p-8">
-      <header className="w-full text-center mb-8">
-        <h1 className="section-title inline-block">Price Prediction Model Analysis</h1>
+    <div className="w-full min-h-screen bg-[var(--background)] p-6 lg:p-8">
+      <header className="w-full text-center mb-6">
+        <h1 className="text-2xl lg:text-3xl font-bold text-zinc-800 dark:text-zinc-100">
+          Price Prediction Model Analysis
+        </h1>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+          Analisi statistica e previsionale dei prezzi
+        </p>
       </header>
 
-      <main className="w-full flex flex-col lg:flex-row gap-8">
-        {/* Left column - data panels (mobile stacked, desktop left half) */}
+      <main className="w-full flex flex-col lg:flex-row gap-6">
+        {/* Left column - Inputs & Data */}
         <aside className="w-full lg:w-1/2 flex flex-col gap-4 self-start">
-          <div className="w-full p-4 card bg-[var(--surface)] rounded-lg">
+          <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
             <PriceHistoryUpload onUpload={handleUpload} />
           </div>
 
           {purchases && (
             <div className="w-full flex flex-col gap-4">
               {/* Storico prezzi e toggle Z-score */}
-              <div className="w-full p-4 bg-[var(--surface)] rounded-lg shadow-sm">
-                <h2 className="label text-lg mb-3">Storico prezzi caricato</h2>
-                <div className="flex flex-wrap gap-3 text-sm mb-3">
+              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
+                  Storico prezzi caricato
+                </h3>
+                <div className="flex flex-wrap gap-2 text-sm mb-3 max-h-32 overflow-y-auto">
                   {intervalPricesRaw.map((price, i) => (
                     <span
                       key={i}
-                      className={`px-3 py-1 rounded-full font-medium ${outlierFlags[i] ? 'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100 ring-1 ring-red-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'}`}
+                      className={`px-2.5 py-1 rounded-full text-sm font-medium ${outlierFlags[i] ? 'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100 ring-1 ring-red-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'}`}
                       style={{ fontVariantNumeric: 'tabular-nums' }}
                     >
-                      {price}
+                      {price.toFixed(2)}
                     </span>
                   ))}
                 </div>
-                <div className="w-full flex items-center">
-                  <label className="flex items-center gap-3 cursor-pointer px-2 py-1 rounded">
-                    <input
-                      type="checkbox"
-                      checked={removeOutliers}
-                      onChange={(e) => setRemoveOutliers(e.target.checked)}
-                      className="w-5 h-5 rounded-sm cursor-pointer border-2 border-zinc-400 dark:border-zinc-500 text-red-600"
-                      aria-label="Rimuovi outlier (Z-score)"
-                    />
-                    <span className="text-base font-semibold text-zinc-800 dark:text-zinc-100">Rimuovi outlier (|Z| {'>'} 2)</span>
-                  </label>
-                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={removeOutliers}
+                    onChange={(e) => setRemoveOutliers(e.target.checked)}
+                    className="w-4 h-4 rounded cursor-pointer accent-red-500"
+                    aria-label="Rimuovi outlier (Z-score)"
+                  />
+                  <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                    Rimuovi outlier (|Z| {'>'} 2)
+                  </span>
+                </label>
               </div>
 
-              <div className="w-full p-4 bg-[var(--surface)] rounded-lg shadow-sm">
-                <div className="label text-zinc-600 mb-3">Intervallo</div>
-                <div className="flex flex-wrap gap-2 mb-3 items-center">
+              {/* Selezione intervallo */}
+              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
+                  Intervallo dati
+                </h3>
+                <div className="flex flex-wrap gap-2 mb-3">
                   {[10, 20, 50, "all"].map((opt) => (
                     <button
                       key={String(opt)}
-                      className={`px-4 py-1 rounded-full text-sm font-medium transition-all border ${interval === opt ? "bg-blue-500 text-white border-blue-500" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700"}`}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${interval === opt ? "bg-blue-500 text-white border-blue-500" : "bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"}`}
                       onClick={() => { setInterval(opt as number | "all"); setCustomInterval(""); }}
                       disabled={typeof opt === "number" && filteredByYear.length < opt}
                       style={{ opacity: typeof opt === "number" && filteredByYear.length < opt ? 0.5 : 1 }}
@@ -338,12 +333,12 @@ export default function Home() {
                     value={customInterval}
                     onChange={handleCustomIntervalChange}
                     onKeyDown={handleCustomIntervalKeyDown}
-                    placeholder={`Personalizzato (1-${filteredByYear.length})`}
-                    className="input w-44 text-center text-sm py-1 px-2"
+                    placeholder={`1-${filteredByYear.length}`}
+                    className="input flex-1 text-sm py-1.5 px-3"
                   />
                   <button
                     type="button"
-                    className="px-4 py-1 rounded-full text-sm font-medium transition-all border bg-blue-500 text-white border-blue-500"
+                    className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
                     onClick={applyCustomInterval}
                     disabled={!customInterval || isNaN(parseInt(customInterval, 10)) || parseInt(customInterval, 10) < 1 || parseInt(customInterval, 10) > filteredByYear.length}
                   >
@@ -354,55 +349,39 @@ export default function Home() {
 
               <StatisticsPanel prices={intervalPrices} />
 
-              <div className="w-full p-4 bg-[var(--surface)] rounded-lg shadow-sm">
-                <NewPriceDeviation
-                  prices={intervalPrices}
-                  isNewPriceOutlier={isNewPriceOutlier}
-                  onDeviationChange={(price, dev) => {
-                    setNewPrice(price);
-                    setDeviation(dev);
-                  }}
-                />
-              </div>
+              {/* NewPriceDeviation - Decision evaluation */}
+              <NewPriceDeviation
+                prices={intervalPrices}
+                isNewPriceOutlier={isNewPriceOutlier}
+                onDeviationChange={(price, dev) => {
+                  setNewPrice(price);
+                  setDeviation(dev);
+                }}
+              />
 
               {stats && intervalPrices && intervalPrices.length > 0 && (
-                <div className="w-full p-4">
-                  <DownloadPdfButton
-                    prices={intervalPrices}
-                    stats={stats}
-                    regression={regression}
-                    newPrice={newPrice}
-                    deviation={deviation}
-                    fromYear={appliedFromYear || null}
-                    toYear={appliedToYear || null}
-                  />
-                </div>
-              )}
-
-              {decisionBuckets && (
-                <div className="w-full p-4">
-                  <h2 className="text-xl font-semibold mb-4">Previsione Probabilistica dei Prezzi</h2>
-                  <div className="grid grid-cols-1 gap-4">
-                    {decisionBuckets.map((bucket, index) => (
-                      <div key={index} className="border p-4 rounded shadow">
-                        <h3 className="font-semibold">{bucket.label}</h3>
-                        <p>Intervallo Prezzi: {bucket.min === -Infinity ? "< " : ""}{bucket.min !== -Infinity ? bucket.min.toFixed(2) : ""} - {bucket.max === Infinity ? "> " : ""}{bucket.max !== Infinity ? bucket.max.toFixed(2) : ""}</p>
-                        <p>Probabilità: {bucket.probability}%</p>
-                        <p>{bucket.explanation}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <DownloadPdfButton
+                  prices={intervalPrices}
+                  stats={stats}
+                  regression={regression}
+                  newPrice={newPrice}
+                  deviation={deviation}
+                  fromYear={appliedFromYear || null}
+                  toYear={appliedToYear || null}
+                />
               )}
             </div>
           )}
         </aside>
 
-        {/* Right column - chart (mobile stacked, desktop right half) */}
+        {/* Right column - Chart & Analysis */}
         <section className="w-full lg:w-1/2 flex flex-col gap-4 self-start">
           {intervalPrices && intervalPrices.length > 0 ? (
-            <div className="w-full p-4 card bg-[var(--surface)] rounded-lg">
-              <div className="w-full h-[520px]">
+            <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
+                Grafico Prezzi
+              </h3>
+              <div className="w-full h-[480px]">
                 <PriceChart
                   prices={intervalPrices}
                   regression={regression}
@@ -410,15 +389,18 @@ export default function Home() {
                   isNewPriceOutlier={isNewPriceOutlier}
                 />
               </div>
-              <div className="mt-4">
-                <LinearRegressionResult prices={intervalPrices} />
-              </div>
             </div>
           ) : (
-            <div className="w-full p-4">
-              <div className="mt-2 mb-4 px-4 py-3 rounded-lg text-zinc-500 text-sm w-full text-center">
-                Nessun dato sufficiente per calcolare statistiche e regressione.
-              </div>
+            <div className="w-full p-8 bg-[var(--surface)] rounded-xl border border-zinc-100 dark:border-zinc-800 text-center">
+              <p className="text-zinc-500 dark:text-zinc-400">
+                Carica uno storico prezzi per visualizzare il grafico
+              </p>
+            </div>
+          )}
+
+          {intervalPrices && intervalPrices.length > 0 && (
+            <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+              <LinearRegressionResult prices={intervalPrices} />
             </div>
           )}
         </section>

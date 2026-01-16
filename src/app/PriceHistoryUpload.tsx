@@ -150,14 +150,16 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
   };
 
   return (
-    <div className="w-full flex flex-col gap-4 card bg-[var(--surface)]">
-      <label className="label text-zinc-700">Storico prezzi (CSV, TXT, RTF, XLSX, XLS)</label>
+    <div className="w-full flex flex-col gap-3">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        Carica Storico Prezzi
+      </h3>
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={handleButtonClick}
-        className={`w-full border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+        className={`w-full border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
           isDragging
             ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
             : "border-zinc-300 dark:border-zinc-600 hover:border-blue-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
@@ -171,16 +173,24 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
           onChange={handleFileChange}
         />
         <div className="flex flex-col items-center gap-2">
-          <svg className="w-10 h-10 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
-          <span className="text-zinc-600 dark:text-zinc-300 font-medium">
-            {isDragging ? "Rilascia il file qui" : "Trascina un file o clicca per selezionare"}
+          <span className="text-zinc-600 dark:text-zinc-300 text-sm font-medium">
+            {isDragging ? "Rilascia il file qui" : "Trascina o clicca per caricare"}
           </span>
-          <span className="text-zinc-400 text-sm">CSV, TXT, RTF, XLSX, XLS</span>
+          <span className="text-zinc-400 text-xs">CSV, TXT, RTF, XLSX, XLS</span>
         </div>
       </div>
-      {fileName && <span className="text-green-600 dark:text-green-400 text-sm font-medium">✓ File caricato: {fileName}</span>}
+      {fileName && (
+        <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          <span className="font-medium">{fileName}</span>
+        </div>
+      )}
       {error && <span className="text-red-500 text-sm font-medium">{error}</span>}
     </div>
   );
