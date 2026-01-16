@@ -12,6 +12,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import { useLanguage } from "@/i18n";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Title, Tooltip, Legend);
 
@@ -42,6 +43,8 @@ export default function OverlayHistoricalVsForecast({
   futurePoints = 5,
   dates = [],
 }: OverlayHistoricalVsForecastProps) {
+  const { t, language } = useLanguage();
+  const dateLocale = language === 'it' ? 'it-IT' : 'en-US';
   
   // ============================================================
   // CALCOLI STATISTICI
@@ -226,7 +229,7 @@ export default function OverlayHistoricalVsForecast({
       },
       // Previsione futura (linea centrale tratteggiata)
       {
-        label: "Previsione Futura",
+        label: t("charts.futureExpected"),
         data: futurePredictionData,
         borderColor: "#8b5cf6",
         backgroundColor: "#8b5cf6",
@@ -240,7 +243,7 @@ export default function OverlayHistoricalVsForecast({
       },
       // Retta di regressione storica
       {
-        label: "Trend Storico",
+        label: t("charts.historicalTrend"),
         data: regressionHistoricalData,
         borderColor: "#22c55e",
         backgroundColor: "#22c55e",
@@ -253,7 +256,7 @@ export default function OverlayHistoricalVsForecast({
       },
       // Prezzi storici (linea solida)
       {
-        label: "Prezzi Storici",
+        label: t("charts.historicalPrices"),
         data: historicalPricesData,
         borderColor: "#3b82f6",
         backgroundColor: "#3b82f6",
@@ -270,7 +273,7 @@ export default function OverlayHistoricalVsForecast({
       ...(newPriceData
         ? [
             {
-              label: "Nuovo Prezzo",
+              label: t("charts.newPrice"),
               data: newPriceData,
               borderColor: "#f97316",
               backgroundColor: "#f97316",
@@ -475,17 +478,17 @@ export default function OverlayHistoricalVsForecast({
         <div className="flex items-center gap-2 text-xs p-2 rounded-lg bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300">
           <span className="w-3 h-0.5 bg-orange-500"></span>
           <span>
-            <span className="font-medium">Nuovo prezzo: {newPrice.toFixed(2)}</span>
-            {" "}— confrontato con la previsione futura
+            <span className="font-medium">{t("charts.newPrice")}: {newPrice.toFixed(2)}</span>
+            {" "}— {t("charts.newPriceCompared")}
           </span>
         </div>
       )}
 
       {/* Nota tecnica */}
       <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">
-        σ (deviazione standard errori) = {sigma.toFixed(2)} | 
-        Dati storici: {n} periodi | 
-        Previsione: {futurePoints} periodi futuri
+        σ ({t("charts.sigmaStdError")}) = {sigma.toFixed(2)} | 
+        {t("charts.historicalData")}: {n} {t("charts.periods")} | 
+        {t("charts.forecast")}: {futurePoints} {t("charts.futurePeriods")}
       </p>
 
       {/* Interpretazione automatica dei dati */}
@@ -497,27 +500,33 @@ export default function OverlayHistoricalVsForecast({
               <path d="M12 16v-4"/>
               <path d="M12 8h.01"/>
             </svg>
-            Interpretazione Analisi
+            {t("charts.analysisInterpretation")}
           </h4>
           <ul className="text-xs text-zinc-600 dark:text-zinc-400 space-y-1.5">
             <li>
-              <span className="font-medium">Trend storico:</span>{' '}
-              <span className={interpretation.trendDirection === 'crescente' ? 'text-red-600 dark:text-red-400' : interpretation.trendDirection === 'decrescente' ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-600'}>
-                {interpretation.trendDirection}
+              <span className="font-medium">{t("charts.historicalTrendLabel")}:</span>{' '}
+              <span className={interpretation.trendDirection === 'crescente' || interpretation.trendDirection === 'increasing' ? 'text-red-600 dark:text-red-400' : interpretation.trendDirection === 'decrescente' || interpretation.trendDirection === 'decreasing' ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-600'}>
+                {language === 'it' 
+                  ? (interpretation.trendDirection === 'crescente' ? t("charts.trendIncreasing") : interpretation.trendDirection === 'decrescente' ? t("charts.trendDecreasing") : t("charts.trendStable"))
+                  : (interpretation.trendDirection === 'increasing' ? t("charts.trendIncreasing") : interpretation.trendDirection === 'decreasing' ? t("charts.trendDecreasing") : t("charts.trendStable"))
+                }
               </span>
-              {' '}({interpretation.priceChangePerc >= 0 ? '+' : ''}{interpretation.priceChangePerc.toFixed(1)}% nel periodo analizzato)
+              {' '}({interpretation.priceChangePerc >= 0 ? '+' : ''}{interpretation.priceChangePerc.toFixed(1)}% {t("charts.inAnalyzedPeriod")})
             </li>
             <li>
-              <span className="font-medium">Volatilità prezzi:</span>{' '}
-              <span className={interpretation.volatility === 'alta' ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-600 dark:text-zinc-400'}>
-                {interpretation.volatility}
+              <span className="font-medium">{t("charts.priceVolatility")}:</span>{' '}
+              <span className={interpretation.volatility === 'alta' || interpretation.volatility === 'high' ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-600 dark:text-zinc-400'}>
+                {language === 'it'
+                  ? (interpretation.volatility === 'alta' ? t("charts.high") : interpretation.volatility === 'media' ? t("charts.medium") : t("charts.low"))
+                  : (interpretation.volatility === 'high' ? t("charts.high") : interpretation.volatility === 'medium' ? t("charts.medium") : t("charts.low"))
+                }
               </span>
               {' '}(CV: {interpretation.cv.toFixed(1)}%)
             </li>
             <li>
-              <span className="font-medium">Previsione prossimo periodo:</span>{' '}
+              <span className="font-medium">{t("charts.nextPeriodForecast")}:</span>{' '}
               <span className="font-semibold">{interpretation.nextPredicted.toFixed(2)}</span>
-              {' '}({interpretation.predictedChangePerc >= 0 ? '+' : ''}{interpretation.predictedChangePerc.toFixed(1)}% vs ultimo prezzo)
+              {' '}({interpretation.predictedChangePerc >= 0 ? '+' : ''}{interpretation.predictedChangePerc.toFixed(1)}% {t("charts.vsLastPrice")})
             </li>
             {interpretation.newPriceEval && (
               <li className={`mt-2 p-2 rounded ${
@@ -528,8 +537,8 @@ export default function OverlayHistoricalVsForecast({
                   : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
               }`}>
                 <span className="font-semibold">{interpretation.newPriceEval.status}:</span>{' '}
-                Il nuovo prezzo ({newPrice?.toFixed(2)}) è {interpretation.newPriceEval.text}
-                {' '}({interpretation.newPriceEval.diffPerc >= 0 ? '+' : ''}{interpretation.newPriceEval.diffPerc.toFixed(1)}% rispetto alla previsione)
+                {t("charts.theNewPrice")} ({newPrice?.toFixed(2)}) {interpretation.newPriceEval.text}
+                {' '}({interpretation.newPriceEval.diffPerc >= 0 ? '+' : ''}{interpretation.newPriceEval.diffPerc.toFixed(1)}% {t("charts.comparedToForecast")})
               </li>
             )}
           </ul>

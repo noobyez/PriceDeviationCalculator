@@ -10,6 +10,8 @@ import DownloadPdfButton from "./DownloadPdfButton";
 import ProductCorrelationPanel from "./ProductCorrelationPanel";
 import { ModularLayout, PanelConfig } from "./components/modular";
 import { HelpPanel, HelpToggle } from "./components/help";
+import { LanguageSelector } from "./components/i18n";
+import { useLanguage } from "@/i18n";
 import { useState, useMemo, useCallback } from "react";
 import { Purchase } from "../models/Purchase";
 
@@ -73,6 +75,7 @@ function getOutlierBounds(arr: number[]) {
 }
 
 export default function Home() {
+  const { t } = useLanguage();
   const [purchases, setPurchases] = useState<Purchase[] | null>(null);
   const [interval, setInterval] = useState<number | "all">("all");
   const [customInterval, setCustomInterval] = useState<string>("");
@@ -374,16 +377,16 @@ export default function Home() {
                   onClick={resetDateFilter}
                   className="text-xs text-blue-500 hover:text-blue-600 hover:underline ml-auto"
                 >
-                  Reset filtro
+                  {t("dateFilter.resetFilter")}
                 </button>
               )}
             </div>
             <div className="flex flex-wrap gap-3 items-end">
               <div className="flex-1 min-w-[120px]">
-                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Da data</label>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">{t("dateFilter.fromDate")}</label>
                 <input
                   type="text"
-                  placeholder="dd/mm/yyyy"
+                  placeholder={t("dateFilter.placeholder")}
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
                   className={`input w-full text-sm py-1.5 px-3 ${invalidDateRange ? 'border-red-400' : ''}`}
@@ -391,10 +394,10 @@ export default function Home() {
                 />
               </div>
               <div className="flex-1 min-w-[120px]">
-                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">A data</label>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">{t("dateFilter.toDate")}</label>
                 <input
                   type="text"
-                  placeholder="dd/mm/yyyy"
+                  placeholder={t("dateFilter.placeholder")}
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
                   className={`input w-full text-sm py-1.5 px-3 ${invalidDateRange ? 'border-red-400' : ''}`}
@@ -407,18 +410,18 @@ export default function Home() {
                 disabled={invalidDateRange}
                 className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Applica
+                {t("common.apply")}
               </button>
             </div>
             {invalidDateRange && (
-              <p className="text-xs text-red-500 mt-2">Formato data non valido (usa dd/mm/yyyy) o intervallo errato</p>
+              <p className="text-xs text-red-500 mt-2">{t("dateFilter.invalidFormat")}</p>
             )}
             {(appliedFromDate || appliedToDate) && !invalidDateRange && (
               <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
-                Filtro attivo: {formatDateDisplay(appliedFromDate) || '...'} → {formatDateDisplay(appliedToDate) || '...'}
+                {t("dateFilter.filterActive")}: {formatDateDisplay(appliedFromDate) || '...'} → {formatDateDisplay(appliedToDate) || '...'}
               </p>
             )}
           </>
@@ -434,12 +437,12 @@ export default function Home() {
                   onClick={resetExclusions}
                   className="text-xs text-blue-500 hover:text-blue-600 hover:underline ml-auto"
                 >
-                  Ripristina tutti ({excludedIndices.size} esclusi)
+                  {t("priceHistory.restoreAll")} ({excludedIndices.size} {t("priceHistory.excludedCount")})
                 </button>
               )}
             </div>
             <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">
-              Clicca su un valore per escluderlo/includerlo dall&apos;analisi
+              {t("priceHistory.clickToExclude")}
             </p>
             <div className="flex flex-wrap gap-2 text-sm mb-3 max-h-32 overflow-y-auto">
               {intervalPricesRaw.map((price, i) => {
@@ -452,7 +455,7 @@ export default function Home() {
                     key={i}
                     type="button"
                     onClick={() => toggleExclude(i)}
-                    title={`${formattedDate}${isExcluded ? ' (escluso)' : isOutlier ? ' (outlier Z>2)' : ''} - Clicca per ${isExcluded ? 'includere' : 'escludere'}`}
+                    title={`${formattedDate}${isExcluded ? ` (${t("priceHistory.excluded")})` : isOutlier ? ` (${t("priceHistory.outlier")})` : ''} - ${isExcluded ? t("priceHistory.clickToInclude") : t("priceHistory.clickToExcludeAction")}`}
                     className={`px-2.5 py-1 rounded-full text-sm font-medium transition-all cursor-pointer ${
                       isExcluded 
                         ? 'bg-zinc-300 dark:bg-zinc-600 text-zinc-500 dark:text-zinc-400 line-through opacity-60' 
@@ -473,10 +476,10 @@ export default function Home() {
                 checked={removeOutliers}
                 onChange={(e) => setRemoveOutliers(e.target.checked)}
                 className="w-4 h-4 rounded cursor-pointer accent-red-500"
-                aria-label="Rimuovi outlier (Z-score)"
+                aria-label={t("priceHistory.removeOutliers")}
               />
               <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                Rimuovi outlier (|Z| {'>'} 2)
+                {t("priceHistory.removeOutliers")}
               </span>
             </label>
           </>
@@ -494,7 +497,7 @@ export default function Home() {
                   disabled={typeof opt === "number" && filteredByDate.length < opt}
                   style={{ opacity: typeof opt === "number" && filteredByDate.length < opt ? 0.5 : 1 }}
                 >
-                  {opt === "all" ? "Tutti" : `Ultimi ${opt}`}
+                  {opt === "all" ? t("interval.all") : `${t("interval.last")} ${opt}`}
                 </button>
               ))}
             </div>
@@ -515,7 +518,7 @@ export default function Home() {
                 onClick={applyCustomInterval}
                 disabled={!customInterval || isNaN(parseInt(customInterval, 10)) || parseInt(customInterval, 10) < 1 || parseInt(customInterval, 10) > filteredByDate.length}
               >
-                Applica
+                {t("common.apply")}
               </button>
             </div>
           </>
@@ -548,7 +551,7 @@ export default function Home() {
             toDate={appliedToDate || null}
           />
         ) : (
-          <p className="text-sm text-zinc-400">Carica dati per abilitare il download</p>
+          <p className="text-sm text-zinc-400">{t("pdf.noData")}</p>
         );
 
       case 'priceChart':
@@ -565,7 +568,7 @@ export default function Home() {
         ) : (
           <div className="text-center py-8">
             <p className="text-zinc-500 dark:text-zinc-400">
-              Carica uno storico prezzi per visualizzare il grafico
+              {t("charts.loadDataPrompt")}
             </p>
           </div>
         );
@@ -574,14 +577,14 @@ export default function Home() {
         return intervalPrices && intervalPrices.length > 0 ? (
           <LinearRegressionResult prices={intervalPrices} />
         ) : (
-          <p className="text-sm text-zinc-400">Carica dati per vedere la regressione</p>
+          <p className="text-sm text-zinc-400">{t("charts.noDataForChart")}</p>
         );
 
       case 'correlation':
         return intervalPrices && intervalPrices.length > 0 ? (
           <ProductCorrelationPanel prices={intervalPrices} dates={intervalDates} />
         ) : (
-          <p className="text-sm text-zinc-400">Carica dati per l&apos;analisi di correlazione</p>
+          <p className="text-sm text-zinc-400">{t("charts.noDataForChart")}</p>
         );
 
       case 'probabilistic':
@@ -596,7 +599,7 @@ export default function Home() {
             />
           </div>
         ) : (
-          <p className="text-sm text-zinc-400">Carica dati per la previsione probabilistica</p>
+          <p className="text-sm text-zinc-400">{t("charts.noDataForChart")}</p>
         );
 
       case 'overlay':
@@ -611,14 +614,14 @@ export default function Home() {
             />
           </div>
         ) : (
-          <p className="text-sm text-zinc-400">Carica dati per vedere storico vs previsione</p>
+          <p className="text-sm text-zinc-400">{t("charts.noDataForChart")}</p>
         );
 
       default:
-        return <p className="text-sm text-zinc-400">Pannello non configurato</p>;
+        return <p className="text-sm text-zinc-400">{t("errors.generic")}</p>;
     }
   }, [
-    appliedFromDate, appliedToDate, fromDate, toDate, invalidDateRange,
+    t, appliedFromDate, appliedToDate, fromDate, toDate, invalidDateRange,
     excludedIndices, intervalPricesRaw, intervalDatesRaw, outlierFlags, removeOutliers,
     interval, customInterval, filteredByDate.length, intervalPrices, intervalDates,
     regression, newPrice, deviation, stats, isNewPriceOutlier,
@@ -630,8 +633,9 @@ export default function Home() {
 
   return (
     <div className="w-full min-h-screen bg-[var(--background)] p-6 lg:p-8">
-      {/* Help Toggle in alto a destra */}
-      <div className="fixed top-4 right-4 z-40">
+      {/* Language Selector e Help Toggle in alto a destra */}
+      <div className="fixed top-4 right-4 z-40 flex items-center gap-3">
+        <LanguageSelector />
         <HelpToggle />
       </div>
 
@@ -640,10 +644,10 @@ export default function Home() {
 
       <header className="w-full text-center mb-6">
         <h1 className="text-2xl lg:text-3xl font-bold text-zinc-800 dark:text-zinc-100">
-          Price Prediction Model Analysis
+          {t("app.title")}
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-          Analisi statistica e previsionale dei prezzi
+          {t("app.subtitle")}
         </p>
       </header>
 
@@ -680,9 +684,9 @@ export default function Home() {
           >
             <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-700">
               <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-100">
-                {zoomedChart === 'prices' && 'Grafico Prezzi'}
-                {zoomedChart === 'probabilistic' && 'Previsione Probabilistica'}
-                {zoomedChart === 'overlay' && 'Storico vs Previsione'}
+                {zoomedChart === 'prices' && t("charts.priceChart")}
+                {zoomedChart === 'probabilistic' && t("charts.probabilistic")}
+                {zoomedChart === 'overlay' && t("charts.overlay")}
               </h2>
               <button
                 type="button"

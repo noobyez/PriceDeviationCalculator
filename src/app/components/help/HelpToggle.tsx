@@ -1,9 +1,11 @@
 "use client";
 import React from 'react';
 import { useHelpOptional } from './HelpContext';
+import { useLanguage } from '@/i18n';
 
 export default function HelpToggle() {
   const { helpEnabled, toggleHelp } = useHelpOptional();
+  const { t } = useLanguage();
 
   return (
     <button
@@ -17,13 +19,13 @@ export default function HelpToggle() {
           : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
         }
       `}
-      title={helpEnabled ? 'Disattiva aiuti' : 'Attiva aiuti'}
+      title={helpEnabled ? t("help.toggleOff") : t("help.toggleOn")}
     >
       <span className={`transition-transform duration-200 ${helpEnabled ? 'scale-110' : 'scale-100'}`}>
         {helpEnabled ? '💡' : '🔅'}
       </span>
       <span className="hidden sm:inline">
-        {helpEnabled ? 'Aiuti ON' : 'Aiuti OFF'}
+        {helpEnabled ? t("help.toggleOn") : t("help.toggleOff")}
       </span>
       
       {/* Toggle switch visual */}

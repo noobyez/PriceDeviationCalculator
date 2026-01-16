@@ -16,6 +16,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { PanelConfig, LayoutState, layoutReducer, DEFAULT_PANELS } from './types';
 import ModularColumn from './ModularColumn';
 import HiddenPanelsMenu from './HiddenPanelsMenu';
+import { useLanguage } from '@/i18n';
 
 // Pannelli essenziali per la modalità Essential
 const ESSENTIAL_LEFT_PANELS = ['upload', 'dateFilter', 'priceHistory', 'statistics'];
@@ -37,6 +38,7 @@ export default function ModularLayout({
   initialPanels,
   hasPurchases = false,
 }: ModularLayoutProps) {
+  const { t } = useLanguage();
   const [state, dispatch] = useReducer(layoutReducer, {
     panels: initialPanels || DEFAULT_PANELS,
   } as LayoutState);
@@ -215,7 +217,7 @@ export default function ModularLayout({
           >
             <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
           </svg>
-          <span>{state.isEssentialMode ? 'Vista Completa' : 'Essential'}</span>
+          <span>{state.isEssentialMode ? t("app.fullView") : t("app.essential")}</span>
           {state.isEssentialMode && (
             <span className="flex h-2 w-2 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
@@ -253,8 +255,7 @@ export default function ModularLayout({
               <path d="M12 8h.01" />
             </svg>
             <span>
-              <strong>Modalità Essential attiva</strong> — Visualizzazione semplificata con i componenti principali.
-              Clicca di nuovo su &quot;Vista Completa&quot; per ripristinare tutti i pannelli.
+              <strong>{t("app.essentialModeActive")}</strong> — {t("app.essentialModeDescription")}
             </span>
           </div>
         </div>

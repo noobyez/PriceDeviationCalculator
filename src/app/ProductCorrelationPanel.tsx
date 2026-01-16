@@ -1,6 +1,7 @@
 "use client";
 import React, { useMemo } from 'react';
 import { Tooltip } from './components/help';
+import { useLanguage } from '@/i18n';
 
 interface ProductCorrelationPanelProps {
   prices: number[];
@@ -49,6 +50,8 @@ function volatility(prices: number[]): number {
 }
 
 export default function ProductCorrelationPanel({ prices, dates }: ProductCorrelationPanelProps) {
+  const { t } = useLanguage();
+  
   const analysis = useMemo(() => {
     if (!prices || prices.length < 5) {
       return null;
@@ -89,7 +92,7 @@ export default function ProductCorrelationPanel({ prices, dates }: ProductCorrel
   if (!analysis) {
     return (
       <div className="text-sm text-zinc-500 dark:text-zinc-400">
-        Servono almeno 5 dati per l&apos;analisi di correlazione.
+        {t("correlation.minDataRequired")}
       </div>
     );
   }
@@ -103,9 +106,9 @@ export default function ProductCorrelationPanel({ prices, dates }: ProductCorrel
 
   const getCorrelationLabel = (value: number) => {
     const abs = Math.abs(value);
-    if (abs > 0.7) return 'Forte';
-    if (abs > 0.4) return 'Moderata';
-    return 'Debole';
+    if (abs > 0.7) return t("correlation.strong");
+    if (abs > 0.4) return t("correlation.moderate");
+    return t("correlation.weak");
   };
 
   const getTrendIcon = (value: number) => {
@@ -118,16 +121,16 @@ export default function ProductCorrelationPanel({ prices, dates }: ProductCorrel
     <div className="space-y-4">
       {/* Autocorrelazioni */}
       <div>
-        <Tooltip content="Misura quanto i prezzi seguono un pattern simile nel tempo. Valori alti indicano prezzi prevedibili.">
+        <Tooltip content={t("correlation.autocorrelationTooltip")}>
           <h4 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
-            Autocorrelazione
+            {t("correlation.autocorrelation")}
           </h4>
         </Tooltip>
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: 'Lag 1', value: analysis.lag1 },
-            { label: 'Lag 2', value: analysis.lag2 },
-            { label: 'Lag 3', value: analysis.lag3 },
+            { label: `${t("correlation.lag")} 1`, value: analysis.lag1 },
+            { label: `${t("correlation.lag")} 2`, value: analysis.lag2 },
+            { label: `${t("correlation.lag")} 3`, value: analysis.lag3 },
           ].map(({ label, value }) => (
             <div key={label} className="bg-zinc-50 dark:bg-zinc-800 rounded-lg p-2 text-center">
               <p className="text-xs text-zinc-400">{label}</p>
@@ -146,9 +149,9 @@ export default function ProductCorrelationPanel({ prices, dates }: ProductCorrel
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-900/30 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-lg">📊</span>
-            <Tooltip content="Indica quanto il prezzo è instabile nel tempo. Alta volatilità = maggiore rischio prezzo." position="right">
+            <Tooltip content={t("correlation.volatilityTooltip")} position="right">
               <h4 className="text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase">
-                Volatilità
+                {t("correlation.volatility")}
               </h4>
             </Tooltip>
           </div>
@@ -156,7 +159,7 @@ export default function ProductCorrelationPanel({ prices, dates }: ProductCorrel
             {analysis.volatility.toFixed(2)}%
           </p>
           <p className="text-[10px] text-purple-600 dark:text-purple-400">
-            {analysis.volatility > 10 ? 'Alta variabilità' : analysis.volatility > 5 ? 'Media variabilità' : 'Bassa variabilità'}
+            {analysis.volatility > 10 ? t("correlation.highVariability") : analysis.volatility > 5 ? t("correlation.mediumVariability") : t("correlation.lowVariability")}
           </p>
         </div>
 
@@ -164,9 +167,9 @@ export default function ProductCorrelationPanel({ prices, dates }: ProductCorrel
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/30 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-lg">{getTrendIcon(analysis.trendStrength)}</span>
-            <Tooltip content="Mostra la direzione generale dei prezzi: rialzista (su), ribassista (giù) o stabile." position="left">
+            <Tooltip content={t("correlation.trendTooltip")} position="left">
               <h4 className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase">
-                Forza Trend
+                {t("correlation.trendStrength")}
               </h4>
             </Tooltip>
           </div>
@@ -174,7 +177,7 @@ export default function ProductCorrelationPanel({ prices, dates }: ProductCorrel
             {(analysis.trendStrength * 100).toFixed(1)}%
           </p>
           <p className="text-[10px] text-blue-600 dark:text-blue-400">
-            {analysis.trendStrength > 0.3 ? 'Trend rialzista' : analysis.trendStrength < -0.3 ? 'Trend ribassista' : 'Nessun trend chiaro'}
+            {analysis.trendStrength > 0.3 ? t("correlation.bullishTrend") : analysis.trendStrength < -0.3 ? t("correlation.bearishTrend") : t("correlation.noTrend")}
           </p>
         </div>
 
@@ -183,9 +186,9 @@ export default function ProductCorrelationPanel({ prices, dates }: ProductCorrel
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-lg">{analysis.momentum > 0 ? '🚀' : analysis.momentum < 0 ? '🔻' : '⚖️'}</span>
-              <Tooltip content="Pressione recente di salita o discesa dei prezzi rispetto al periodo precedente.">
+              <Tooltip content={t("correlation.momentumTooltip")}>
                 <h4 className="text-xs font-semibold text-amber-700 dark:text-amber-300 uppercase">
-                  Momentum Recente
+                  {t("correlation.momentum")}
                 </h4>
               </Tooltip>
             </div>
@@ -194,7 +197,7 @@ export default function ProductCorrelationPanel({ prices, dates }: ProductCorrel
                 {analysis.momentum > 0 ? '+' : ''}{analysis.momentum.toFixed(2)}%
               </p>
               <p className="text-[10px] text-amber-600 dark:text-amber-400">
-                vs periodo precedente
+                {t("correlation.vsPreviousPeriod")}
               </p>
             </div>
           </div>
@@ -204,29 +207,29 @@ export default function ProductCorrelationPanel({ prices, dates }: ProductCorrel
       {/* Interpretazione */}
       <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg p-3">
         <h4 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
-          💡 Interpretazione
+          💡 {t("correlation.interpretation")}
         </h4>
         <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
           {analysis.lag1 > 0.5 && (
-            <>I prezzi mostrano forte persistenza: un prezzo alto tende a seguire un altro prezzo alto. </>
+            <>{t("correlation.highPersistence")} </>
           )}
           {analysis.volatility > 10 && (
-            <>Elevata volatilità indica rischio prezzo significativo. </>
+            <>{t("correlation.highVolatility")} </>
           )}
           {analysis.trendStrength > 0.5 && (
-            <>Chiaro trend rialzista nel periodo analizzato. </>
+            <>{t("correlation.bullishTrendClear")} </>
           )}
           {analysis.trendStrength < -0.5 && (
-            <>Chiaro trend ribassista nel periodo analizzato. </>
+            <>{t("correlation.bearishTrendClear")} </>
           )}
           {Math.abs(analysis.trendStrength) <= 0.3 && Math.abs(analysis.lag1) <= 0.3 && (
-            <>I prezzi appaiono relativamente stabili senza trend marcati. </>
+            <>{t("correlation.stablePrices")} </>
           )}
           {analysis.momentum > 5 && (
-            <>Il momentum positivo suggerisce pressione rialzista recente.</>
+            <>{t("correlation.positiveMomentum")}</>
           )}
           {analysis.momentum < -5 && (
-            <>Il momentum negativo suggerisce pressione ribassista recente.</>
+            <>{t("correlation.negativeMomentum")}</>
           )}
         </p>
       </div>

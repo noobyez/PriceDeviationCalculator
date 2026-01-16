@@ -1,85 +1,37 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useHelpOptional } from './HelpContext';
+import { useLanguage } from '@/i18n';
 
 interface HelpSection {
   id: string;
-  title: string;
   icon: string;
-  content: string[];
 }
 
-const helpSections: HelpSection[] = [
-  {
-    id: 'intro',
-    title: 'Cosa fa questa app?',
-    icon: '🎯',
-    content: [
-      'Ti aiuta a valutare se un prezzo proposto da un fornitore è ragionevole.',
-      'Analizza lo storico dei prezzi passati e calcola una previsione del prezzo atteso.',
-      'Ti indica se il nuovo prezzo è in linea con il trend o se è anomalo.',
-    ],
-  },
-  {
-    id: 'prices',
-    title: 'Prezzi Storici',
-    icon: '📊',
-    content: [
-      'Mostra tutti i prezzi pagati in passato per questo prodotto.',
-      'I prezzi evidenziati in rosso sono considerati anomali (outlier).',
-      'Puoi cliccare su un prezzo per escluderlo temporaneamente dall\'analisi.',
-    ],
-  },
-  {
-    id: 'regression',
-    title: 'Linea di Regressione',
-    icon: '📈',
-    content: [
-      'È una linea che rappresenta il trend medio dei prezzi nel tempo.',
-      'Se la linea sale, i prezzi tendono ad aumentare.',
-      'Se la linea scende, i prezzi tendono a diminuire.',
-      'Il valore R² indica quanto questa previsione è affidabile (più alto = meglio).',
-    ],
-  },
-  {
-    id: 'forecast',
-    title: 'Previsione Probabilistica',
-    icon: '🔮',
-    content: [
-      'Mostra dove probabilmente si collocherà il prezzo futuro.',
-      'La banda verde chiara (±1σ) indica dove cadrà il prezzo nel 68% dei casi.',
-      'La banda più ampia (±2σ) copre il 95% delle possibilità.',
-      'Se il nuovo prezzo è dentro la banda, è considerato normale.',
-    ],
-  },
-  {
-    id: 'indicators',
-    title: 'Indicatori Chiave',
-    icon: '📉',
-    content: [
-      '**Volatilità**: quanto il prezzo oscilla. Alta volatilità = maggiore rischio.',
-      '**Trend**: direzione generale dei prezzi (su, giù, stabile).',
-      '**Momentum**: pressione recente. Positivo = prezzi in salita, negativo = in calo.',
-      '**Correlazione**: quanto i prezzi seguono uno schema prevedibile.',
-    ],
-  },
-  {
-    id: 'decision',
-    title: 'Come Decidere',
-    icon: '✅',
-    content: [
-      '🟢 Prezzo nella banda verde → ragionevole, puoi procedere.',
-      '🟡 Prezzo vicino al limite → valuta con attenzione.',
-      '🔴 Prezzo fuori dalla banda → richiedi chiarimenti al fornitore.',
-      'Considera sempre il contesto: variazioni di mercato, qualità, volumi.',
-    ],
-  },
+const sectionIcons: HelpSection[] = [
+  { id: 'intro', icon: '🎯' },
+  { id: 'prices', icon: '📊' },
+  { id: 'regression', icon: '📈' },
+  { id: 'forecast', icon: '🔮' },
+  { id: 'indicators', icon: '📉' },
+  { id: 'decision', icon: '✅' },
 ];
 
 export default function HelpPanel() {
   const { helpEnabled } = useHelpOptional();
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>('intro');
+
+  // Build sections from translations
+  const helpSections = useMemo(() => {
+    return sectionIcons.map(section => ({
+      id: section.id,
+      icon: section.icon,
+      title: t(`help.sections.${section.id}.title`),
+      content: t(`help.sections.${section.id}.content`).split('\n'),
+    }));
+  }, [t]);
 
   if (!helpEnabled) return null;
 
@@ -92,7 +44,7 @@ export default function HelpPanel() {
         className="fixed bottom-6 left-6 z-40 flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 rounded-full shadow-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 hover:shadow-xl transition-all duration-200 group"
       >
         <span className="text-lg group-hover:scale-110 transition-transform">ℹ️</span>
-        <span className="text-sm font-medium">Help</span>
+        <span className="text-sm font-medium">{t("help.title")}</span>
       </button>
 
       {/* Help Panel Overlay */}
@@ -112,10 +64,10 @@ export default function HelpPanel() {
                 <span className="text-2xl">📖</span>
                 <div>
                   <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                    Guida Rapida
+                    {t("help.quickGuide")}
                   </h2>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Come usare l&apos;analisi prezzi
+                    {t("help.howToUse")}
                   </p>
                 </div>
               </div>
@@ -197,9 +149,9 @@ export default function HelpPanel() {
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/50">
+            <div className="px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
               <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center">
-                💡 Puoi disattivare gli aiuti dal toggle in alto a destra
+                💡 {t("help.disableHint")}
               </p>
             </div>
           </div>

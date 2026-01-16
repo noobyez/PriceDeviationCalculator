@@ -1,13 +1,15 @@
 "use client";
 import React, { useRef, useState, DragEvent } from "react";
 import * as XLSX from "xlsx";
-import { Purchase } from "../models/Purchase"; // Importing the Purchase model
+import { Purchase } from "../models/Purchase";
+import { useLanguage } from "@/i18n";
 
 interface PriceHistoryUploadProps {
   onUpload: (purchases: Purchase[]) => void;
 }
 
 export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps) {
+  const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
@@ -32,10 +34,10 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
         const text = await file.text();
         purchases = parseTextFile(text);
       }
-      if (purchases.length === 0) throw new Error("Nessun dato valido trovato nel file.");
+      if (purchases.length === 0) throw new Error(t("upload.noData"));
       onUpload(purchases);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Errore durante la lettura del file.");
+      setError(err instanceof Error ? err.message : t("upload.fileError"));
     }
   };
 
@@ -152,7 +154,7 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
   return (
     <div className="w-full flex flex-col gap-3">
       <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-        Carica Storico Prezzi
+        {t("upload.title")}
       </h3>
       <div
         onDragOver={handleDragOver}
@@ -177,9 +179,9 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
           <span className="text-zinc-600 dark:text-zinc-300 text-sm font-medium">
-            {isDragging ? "Rilascia il file qui" : "Trascina o clicca per caricare"}
+            {isDragging ? t("upload.dragDropActive") : t("upload.clickToUpload")}
           </span>
-          <span className="text-zinc-400 text-xs">CSV, TXT, RTF, XLSX, XLS</span>
+          <span className="text-zinc-400 text-xs">{t("upload.supportedFormats")}</span>
         </div>
       </div>
       {fileName && (

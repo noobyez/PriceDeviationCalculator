@@ -12,6 +12,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import { useLanguage } from "@/i18n";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Title, Tooltip, Legend);
 
@@ -42,6 +43,8 @@ export default function ProbabilisticPriceChart({
   futurePoints = 5,
   dates = [],
 }: ProbabilisticPriceChartProps) {
+  const { t } = useLanguage();
+  
   // Calcola gli errori storici e la deviazione standard
   const { sigma, predictions, labels } = useMemo(() => {
     if (!regression || prices.length < 2) {
@@ -159,7 +162,7 @@ export default function ProbabilisticPriceChart({
       },
       // Linea centrale (prezzo atteso)
       {
-        label: "Prezzo Atteso",
+        label: t("charts.expectedPrice"),
         data: predictions,
         borderColor: "#3b82f6",
         backgroundColor: "#3b82f6",
@@ -173,7 +176,7 @@ export default function ProbabilisticPriceChart({
       ...(newPrice !== null
         ? [
             {
-              label: "Nuovo Prezzo",
+              label: t("charts.newPrice"),
               data: predictions.map(() => newPrice),
               borderColor: "#f97316",
               backgroundColor: "#f97316",
@@ -262,15 +265,15 @@ export default function ProbabilisticPriceChart({
       <div className="flex flex-wrap gap-3 text-xs text-zinc-500 dark:text-zinc-400">
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-sm bg-emerald-500/30"></span>
-          <span>±1σ (68%)</span>
+          <span>{t("charts.sigma1")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-sm bg-amber-500/30"></span>
-          <span>±2σ (95%)</span>
+          <span>{t("charts.sigma2")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-sm bg-red-500/20"></span>
-          <span>±3σ (99.7%)</span>
+          <span>{t("charts.sigma3")}</span>
         </div>
       </div>
 
@@ -283,18 +286,18 @@ export default function ProbabilisticPriceChart({
             ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
             : "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300"
         }`}>
-          <span className="font-medium">Nuovo prezzo ({newPrice.toFixed(2)})</span>
-          {" "}rientra nella banda <span className="font-semibold">{newPricePosition}</span>
-          {newPricePosition === "1σ" && " — altamente probabile"}
-          {newPricePosition === "2σ" && " — moderatamente probabile"}
-          {newPricePosition === "3σ" && " — poco probabile"}
-          {newPricePosition === ">3σ" && " — anomalo/outlier"}
+          <span className="font-medium">{t("charts.newPrice")} ({newPrice.toFixed(2)})</span>
+          {" "}{t("charts.newPriceInBand")} <span className="font-semibold">{newPricePosition}</span>
+          {newPricePosition === "1σ" && ` — ${t("charts.highlyProbable")}`}
+          {newPricePosition === "2σ" && ` — ${t("charts.moderatelyProbable")}`}
+          {newPricePosition === "3σ" && ` — ${t("charts.unlikelyProbable")}`}
+          {newPricePosition === ">3σ" && ` — ${t("charts.anomalyOutlier")}`}
         </div>
       )}
 
       {/* Nota tecnica */}
       <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">
-        σ = {sigma.toFixed(2)} (deviazione standard degli errori storici di regressione)
+        σ = {sigma.toFixed(2)} ({t("charts.sigmaNote")})
       </p>
     </div>
   );

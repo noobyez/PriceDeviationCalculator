@@ -12,6 +12,7 @@ import {
   Legend,
   Filler,
 } from "chart.js";
+import { useLanguage } from "@/i18n";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
@@ -24,7 +25,9 @@ interface PriceChartProps {
 }
 
 export default function PriceChart({ prices, regression, newPrice, isNewPriceOutlier = false, dates = [] }: PriceChartProps) {
+  const { t, language } = useLanguage();
   const n = prices.length;
+  const dateLocale = language === 'it' ? 'it-IT' : 'en-US';
   
   // Calcola dati derivati
   const chartData = useMemo(() => {
@@ -33,10 +36,10 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
       if (i < n && dates[i]) {
         const d = new Date(dates[i]);
         if (!isNaN(d.getTime())) {
-          return d.toLocaleDateString('it-IT', { month: 'short', year: '2-digit' });
+          return d.toLocaleDateString(dateLocale, { month: 'short', year: '2-digit' });
         }
       }
-      return i < n ? `${i + 1}` : 'Prev';
+      return i < n ? `${i + 1}` : t("charts.forecast");
     });
 
     // Serie storica
@@ -91,7 +94,7 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
     datasets: [
       // Banda ±5% (area riempita)
       {
-        label: "Banda ±5%",
+        label: t("charts.bandPlus5"),
         data: chartData.regressionPlus5,
         borderColor: colors.bandBorder,
         backgroundColor: colors.band,
@@ -103,7 +106,7 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
         order: 5,
       },
       {
-        label: "Banda -5%",
+        label: t("charts.bandMinus5"),
         data: chartData.regressionMinus5,
         borderColor: colors.bandBorder,
         backgroundColor: 'transparent',
@@ -116,7 +119,7 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
       },
       // Retta di regressione (trend)
       {
-        label: "Trend (regressione)",
+        label: t("charts.trendRegression"),
         data: chartData.regressionLine,
         borderColor: colors.regression,
         backgroundColor: colors.regression,
@@ -129,7 +132,7 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
       },
       // Serie storica prezzi
       {
-        label: "Prezzi storici",
+        label: t("charts.historicalPrices"),
         data: chartData.priceData,
         borderColor: colors.primary,
         backgroundColor: colors.primaryLight,
@@ -148,7 +151,7 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
       },
       // Prezzo atteso (punto singolo)
       ...(regression ? [{
-        label: "Prezzo atteso",
+        label: t("charts.expectedPrice"),
         data: chartData.expectedPriceData,
         borderColor: colors.expected,
         backgroundColor: colors.expected,
@@ -162,7 +165,7 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
       }] : []),
       // Nuovo prezzo offerto (punto singolo)
       ...(newPrice !== null ? [{
-        label: isNewPriceOutlier ? "Prezzo offerto ⚠️" : "Prezzo offerto",
+        label: isNewPriceOutlier ? t("charts.offeredPriceWarning") : t("charts.offeredPrice"),
         data: chartData.newPriceData,
         borderColor: isNewPriceOutlier ? colors.newPriceOutlier : colors.newPriceOk,
         backgroundColor: isNewPriceOutlier ? colors.newPriceOutlier : colors.newPriceOk,
@@ -176,7 +179,7 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
       }] : []),
       // Linea di collegamento tra prezzo atteso e nuovo prezzo
       ...(regression && newPrice !== null ? [{
-        label: "Scostamento",
+        label: t("charts.deviation"),
         data: Array(n).fill(null).concat([regression.predicted, newPrice]),
         borderColor: isNewPriceOutlier ? 'rgba(239, 68, 68, 0.6)' : 'rgba(139, 92, 246, 0.6)',
         borderWidth: 2,
@@ -243,14 +246,14 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
             if (idx < n && dates[idx]) {
               const d = new Date(dates[idx]);
               if (!isNaN(d.getTime())) {
-                return d.toLocaleDateString('it-IT', { 
+                return d.toLocaleDateString(dateLocale, { 
                   day: 'numeric',
                   month: 'long', 
                   year: 'numeric' 
                 });
               }
             }
-            return idx < n ? `Periodo ${idx + 1}` : 'Previsione';
+            return idx < n ? `${t("charts.period")} ${idx + 1}` : t("charts.forecast");
           },
           label: (context: { dataset: { label?: string }; parsed: { y: number | null } }) => {
             const label = context.dataset.label || "";
@@ -261,7 +264,7 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
             
             const formattedValue = typeof value === 'number' ? `€ ${value.toFixed(2)}` : value;
             
-            if (label === "Scostamento" && diffAbs !== null && diffPerc !== null) {
+            if (label === t("charts.deviation") && diffAbs !== null && diffPerc !== null) {
               const sign = diffPerc >= 0 ? '+' : '';
               return `Δ ${sign}${diffAbs.toFixed(2)} (${sign}${diffPerc.toFixed(1)}%)`;
             }
@@ -292,7 +295,7 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
         },
         title: { 
           display: true, 
-          text: "Periodo",
+          text: t("charts.period"),
           font: { size: 11, weight: 500 },
           color: '#71717a',
           padding: { top: 8 },
@@ -320,7 +323,7 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
         },
         title: { 
           display: true, 
-          text: "Prezzo (€)",
+          text: `${t("common.price")} (€)`,
           font: { size: 11, weight: 500 },
           color: '#71717a',
           padding: { bottom: 8 },
@@ -390,10 +393,10 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
                     ? 'text-emerald-800 dark:text-emerald-200'
                     : 'text-amber-800 dark:text-amber-200'
               }`}>
-                {isNewPriceOutlier ? 'Prezzo Anomalo' : Math.abs(diffPerc || 0) <= 2 ? 'Prezzo nella norma' : 'Scostamento moderato'}
+                {isNewPriceOutlier ? t("charts.anomalousPrice") : Math.abs(diffPerc || 0) <= 2 ? t("charts.priceWithinNorm") : t("charts.moderateDeviation")}
               </p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Atteso: €{regression.predicted.toFixed(2)} → Offerto: €{newPrice.toFixed(2)}
+                {t("charts.expected")}: €{regression.predicted.toFixed(2)} → {t("charts.offered")}: €{newPrice.toFixed(2)}
               </p>
             </div>
           </div>
@@ -416,7 +419,7 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
       
       {/* Nota disclaimer */}
       <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center">
-        Regressione lineare sui dati storici • I risultati sono indicativi
+        {t("charts.regressionDisclaimer")}
       </p>
     </div>
   );

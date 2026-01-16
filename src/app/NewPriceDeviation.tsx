@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { evaluateRdaPrice } from "../utils/rdaPriceAlert";
 import StatusCard from "../components/StatusCard";
 import SectionCard from "../components/SectionCard";
+import { useLanguage } from "@/i18n";
 
 interface NewPriceDeviationProps {
   prices: number[];
@@ -30,6 +31,7 @@ function linearRegression(prices: number[]) {
 }
 
 export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, onDeviationChange, onRdaResult }: NewPriceDeviationProps) {
+  const { t } = useLanguage();
   const [newPrice, setNewPrice] = useState<string>("");
   const [result, setResult] = useState<{ abs: number; perc: number } | null>(null);
   const [rdaPrice, setRdaPrice] = useState<string>("");
@@ -75,7 +77,7 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
       {prezzoAtteso && (
         <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-100 dark:border-blue-800">
           <div className="text-xs text-blue-600 dark:text-blue-300 uppercase tracking-wide font-medium">
-            Prezzo Atteso (Trend)
+            {t("newPrice.expectedPriceTrend")}
           </div>
           <div className="text-2xl font-bold text-blue-700 dark:text-blue-200" style={{ fontVariantNumeric: 'tabular-nums' }}>
             {prezzoAtteso.toFixed(2)}
@@ -84,7 +86,7 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
       )}
 
       {/* Nuovo prezzo offerto */}
-      <SectionCard title="Prezzo Offerto" compact>
+      <SectionCard title={t("newPrice.offeredPrice")} compact>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input
             type="number"
@@ -92,25 +94,25 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
             value={newPrice}
             onChange={handleChange}
             className="input w-full"
-            placeholder="Inserisci prezzo fornitore"
+            placeholder={t("newPrice.inputPlaceholder")}
             required
           />
           <button type="submit" className="btn w-full">
-            Calcola scostamento
+            {t("newPrice.calculateDeviation")}
           </button>
         </form>
 
         {result && (
           <div className={`mt-3 p-3 rounded-lg text-sm ${isNewPriceOutlier ? "bg-red-50 dark:bg-red-900/40 text-red-800 dark:text-red-100" : "bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200"}`}>
             <div className="flex justify-between">
-              <span>Scostamento:</span>
+              <span>{t("newPrice.deviation")}:</span>
               <span className="font-semibold" style={{ fontVariantNumeric: 'tabular-nums' }}>
                 {result.abs >= 0 ? "+" : ""}{result.abs.toFixed(2)} ({result.perc >= 0 ? "+" : ""}{result.perc.toFixed(1)}%)
               </span>
             </div>
             {isNewPriceOutlier && (
               <div className="mt-2 text-xs text-red-600 dark:text-red-300 font-medium">
-                ⚠ Supera la soglia ±5%
+                ⚠ {t("newPrice.exceedsThreshold")}
               </div>
             )}
           </div>
@@ -118,7 +120,7 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
       </SectionCard>
 
       {/* Valutazione RDA - Main decision point */}
-      <SectionCard title="Valutazione RDA" subtitle="Inserisci il prezzo proposto per la valutazione" compact>
+      <SectionCard title={t("newPrice.rdaTitle")} subtitle={t("newPrice.rdaSubtitle")} compact>
         <form onSubmit={handleRdaSubmit} className="flex flex-col gap-3">
           <input
             type="number"
@@ -126,11 +128,11 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
             value={rdaPrice}
             onChange={(e) => setRdaPrice(e.target.value)}
             className="input w-full"
-            placeholder="Prezzo RDA"
+            placeholder={t("newPrice.rdaPlaceholder")}
             required
           />
           <button type="submit" className="btn w-full">
-            Valuta RDA
+            {t("newPrice.evaluateRda")}
           </button>
         </form>
       </SectionCard>

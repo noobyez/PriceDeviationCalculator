@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { Tooltip } from "./components/help";
+import { useLanguage } from "@/i18n";
 
 interface LinearRegressionResultProps {
   prices: number[];
@@ -37,6 +38,7 @@ function linearRegression(prices: number[]): { a: number; b: number; predicted: 
 }
 
 export default function LinearRegressionResult({ prices }: LinearRegressionResultProps) {
+  const { t } = useLanguage();
   const result = linearRegression(prices);
   if (!result) return null;
 
@@ -50,17 +52,17 @@ export default function LinearRegressionResult({ prices }: LinearRegressionResul
 
   return (
     <div className="flex flex-col gap-3">
-      <Tooltip content="La regressione lineare mostra il trend medio atteso dei prezzi basato sullo storico.">
+      <Tooltip content={t("regression.titleTooltip")}>
         <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          Analisi Trend
+          {t("regression.title")}
         </h3>
       </Tooltip>
       
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Tooltip content="Prezzo previsto per il prossimo acquisto, calcolato dal trend storico." position="bottom">
+          <Tooltip content={t("regression.expectedPriceTooltip")} position="bottom">
             <div className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-              Prezzo Atteso
+              {t("regression.expectedPrice")}
             </div>
           </Tooltip>
           <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400" style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -68,9 +70,9 @@ export default function LinearRegressionResult({ prices }: LinearRegressionResul
           </div>
         </div>
         <div>
-          <Tooltip content="Quanto è affidabile questa previsione: alto (>70%) = molto affidabile, basso (<40%) = poco affidabile." position="bottom">
+          <Tooltip content={t("regression.confidenceTooltip")} position="bottom">
             <div className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-              Confidenza (R²)
+              {t("regression.confidence")}
             </div>
           </Tooltip>
           <div className={`text-2xl font-bold ${confidenceColors[confidenceLevel]}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -80,7 +82,7 @@ export default function LinearRegressionResult({ prices }: LinearRegressionResul
       </div>
 
       <p className="text-xs text-zinc-500 dark:text-zinc-400 italic">
-        R² indica quanto i prezzi storici seguono un andamento coerente: più è alto, più il trend è affidabile.
+        {t("regression.confidenceDesc")}
       </p>
     </div>
   );

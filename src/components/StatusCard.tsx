@@ -3,7 +3,9 @@
  * Displays RDA evaluation status prominently with color-coded feedback
  * User should understand the decision in under 3 seconds
  */
+"use client";
 import React from "react";
+import { useLanguage } from "@/i18n";
 
 type StatusType = "OK" | "WARNING" | "ALERT" | null;
 
@@ -14,13 +16,14 @@ interface StatusCardProps {
   title?: string;
 }
 
+// Config without titles - titles will be translated
 const statusConfig = {
   OK: {
     bg: "bg-emerald-50 dark:bg-emerald-900/40",
     border: "border-emerald-200 dark:border-emerald-700",
     icon: "✓",
     iconBg: "bg-emerald-500",
-    title: "Prezzo Accettabile",
+    titleKey: "status.priceAcceptable",
     titleColor: "text-emerald-800 dark:text-emerald-100",
   },
   WARNING: {
@@ -28,7 +31,7 @@ const statusConfig = {
     border: "border-amber-200 dark:border-amber-700",
     icon: "⚠",
     iconBg: "bg-amber-500",
-    title: "Attenzione Richiesta",
+    titleKey: "status.attentionRequired",
     titleColor: "text-amber-800 dark:text-amber-100",
   },
   ALERT: {
@@ -36,12 +39,14 @@ const statusConfig = {
     border: "border-red-200 dark:border-red-700",
     icon: "✕",
     iconBg: "bg-red-500",
-    title: "Prezzo Non Accettabile",
+    titleKey: "status.priceNotAcceptable",
     titleColor: "text-red-800 dark:text-red-100",
   },
 };
 
 export default function StatusCard({ status, reasons, comment, title }: StatusCardProps) {
+  const { t } = useLanguage();
+  
   if (!status) return null;
 
   const config = statusConfig[status];
@@ -55,10 +60,10 @@ export default function StatusCard({ status, reasons, comment, title }: StatusCa
         </div>
         <div>
           <div className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-medium">
-            {title || "Stato RDA"}
+            {title || t("status.rdaStatus")}
           </div>
           <div className={`text-xl font-bold ${config.titleColor}`}>
-            {config.title}
+            {t(config.titleKey)}
           </div>
         </div>
       </div>

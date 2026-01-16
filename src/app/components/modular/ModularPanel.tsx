@@ -3,6 +3,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { PanelConfig } from './types';
+import { useLanguage } from '@/i18n';
 
 interface ModularPanelProps {
   config: PanelConfig;
@@ -27,6 +28,7 @@ export default function ModularPanel({
   hasZoom = false,
   className = '',
 }: ModularPanelProps) {
+  const { t } = useLanguage();
   const [isResizing, setIsResizing] = useState(false);
   const [showMoveMenu, setShowMoveMenu] = useState(false);
   const [isAnimating, setIsAnimating] = useState(true);
@@ -127,7 +129,7 @@ export default function ModularPanel({
             <circle cx="15" cy="19" r="1" fill="currentColor" />
           </svg>
           <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            {config.title}
+            {t(`panels.${config.id}`)}
           </h3>
         </div>
 
@@ -139,7 +141,7 @@ export default function ModularPanel({
               type="button"
               onClick={() => setShowMoveMenu(!showMoveMenu)}
               className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-              title="Sposta pannello"
+              title={t("panels.movePanel")}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -166,7 +168,7 @@ export default function ModularPanel({
                   disabled={config.column === 'left'}
                   className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-t-lg"
                 >
-                  ← Colonna sinistra
+                  ← {t("common.leftColumn")}
                 </button>
                 <button
                   type="button"
@@ -174,7 +176,7 @@ export default function ModularPanel({
                   disabled={config.column === 'right'}
                   className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-b-lg"
                 >
-                  → Colonna destra
+                  → {t("common.rightColumn")}
                 </button>
               </div>
             )}
@@ -186,7 +188,7 @@ export default function ModularPanel({
               type="button"
               onClick={onZoom}
               className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-              title="Espandi"
+              title={t("common.expand")}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -213,7 +215,7 @@ export default function ModularPanel({
             type="button"
             onClick={onCollapse}
             className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-            title={config.collapsed ? 'Espandi' : 'Comprimi'}
+            title={config.collapsed ? t("common.expand") : t("common.collapse")}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -236,7 +238,7 @@ export default function ModularPanel({
             type="button"
             onClick={onHide}
             className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-            title="Nascondi pannello"
+            title={t("panels.hidePanel")}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
