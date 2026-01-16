@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import LinearRegressionResult from "./LinearRegressionResult";
 import PriceChart from "./PriceChart";
 import { evaluateRdaPrice } from "../utils/rdaPriceAlert";
+import { generateDecisionBuckets } from "../utils/probabilisticForecast";
 
 interface NewPriceDeviationProps {
   prices: number[];
@@ -35,6 +36,7 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
   const [rdaAlert, setRdaAlert] = useState<{ status: "OK" | "WARNING" | "ALERT"; reasons: string[] } | null>(null);
   const [rdaPrice, setRdaPrice] = useState<string>("");
   const [rdaResult, setRdaResult] = useState<{ status: "OK" | "WARNING" | "ALERT"; reasons: string[]; comment?: string } | null>(null);
+  const [decisionBuckets, setDecisionBuckets] = useState<{ label: string; min: number; max: number; probability: number; explanation: string }[] | null>(null);
   const regression = linearRegression(prices);
   const prezzoAtteso = regression ? regression.predicted : null;
 
@@ -70,6 +72,10 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
     }
     const result = evaluateRdaPrice(prices, parsedRdaPrice, prezzoAtteso);
     setRdaResult({ ...result }); // Usa un nuovo oggetto per forzare il re-render
+
+    // Generate probabilistic forecast
+    const buckets = generateDecisionBuckets(prices, prezzoAtteso);
+    setDecisionBuckets(buckets);
   };
 
   return (
@@ -135,6 +141,21 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
             <div key={index} className="text-sm mt-1">{reason}</div>
           ))}
           <div className="mt-4 text-sm text-gray-700 dark:text-gray-300">{rdaResult.comment}</div>
+        </div>
+      )}
+      {decisionBuckets && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold mb-4">Previsione Probabilistica dei Prezzi</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {decisionBuckets.map((bucket, index) => (
+              <div key={index} className="border p-4 rounded shadow">
+                <h4 className="font-semibold">{bucket.label}</h4>
+                <p>Intervallo Prezzi: {bucket.min === -Infinity ? "< " : ""}{bucket.min !== -Infinity ? bucket.min.toFixed(2) : ""} - {bucket.max === Infinity ? "> " : ""}{bucket.max !== Infinity ? bucket.max.toFixed(2) : ""}</p>
+                <p>Probabilità: {bucket.probability}%</p>
+                <p>{bucket.explanation}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
