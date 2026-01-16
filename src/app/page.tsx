@@ -3,6 +3,7 @@ import PriceHistoryUpload from "./PriceHistoryUpload";
 import LinearRegressionResult from "./LinearRegressionResult";
 import NewPriceDeviation from "./NewPriceDeviation";
 import PriceChart from "./PriceChart";
+import ProbabilisticPriceChart from "./ProbabilisticPriceChart";
 import StatisticsPanel from "./StatisticsPanel";
 import DownloadPdfButton from "./DownloadPdfButton";
 import { useState, useMemo } from "react";
@@ -401,6 +402,21 @@ export default function Home() {
           {intervalPrices && intervalPrices.length > 0 && (
             <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
               <LinearRegressionResult prices={intervalPrices} />
+            </div>
+          )}
+
+          {/* Grafico Probabilistico Prezzi Futuri */}
+          {intervalPrices && intervalPrices.length > 0 && regression && (
+            <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
+                Previsione Probabilistica
+              </h3>
+              <ProbabilisticPriceChart
+                prices={intervalPrices}
+                regression={regression}
+                newPrice={newPrice}
+                futurePoints={5}
+              />
             </div>
           )}
         </section>
