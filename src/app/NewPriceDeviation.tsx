@@ -1,7 +1,6 @@
 "use client";
 import React, { useState } from "react";
 import { evaluateRdaPrice } from "../utils/rdaPriceAlert";
-import { generateDecisionBuckets } from "../utils/probabilisticForecast";
 import StatusCard from "../components/StatusCard";
 import SectionCard from "../components/SectionCard";
 
@@ -35,7 +34,6 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
   const [result, setResult] = useState<{ abs: number; perc: number } | null>(null);
   const [rdaPrice, setRdaPrice] = useState<string>("");
   const [rdaResult, setRdaResult] = useState<{ status: "OK" | "WARNING" | "ALERT"; reasons: string[]; comment?: string } | null>(null);
-  const [decisionBuckets, setDecisionBuckets] = useState<{ label: string; min: number; max: number; probability: number; explanation: string }[] | null>(null);
   
   const regression = linearRegression(prices);
   const prezzoAtteso = regression ? regression.predicted : null;
@@ -69,10 +67,6 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
     const evalResult = evaluateRdaPrice(prices, parsedRdaPrice, prezzoAtteso);
     setRdaResult({ ...evalResult });
     onRdaResult?.({ ...evalResult });
-
-    // Generate probabilistic forecast
-    const buckets = generateDecisionBuckets(prices, prezzoAtteso);
-    setDecisionBuckets(buckets);
   };
 
   return (
@@ -148,35 +142,6 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
           reasons={rdaResult.reasons}
           comment={rdaResult.comment}
         />
-      )}
-
-      {/* Probabilistic Buckets - Collapsible/secondary info */}
-      {decisionBuckets && (
-        <SectionCard title="Analisi Probabilistica" compact>
-          <div className="grid grid-cols-2 gap-2">
-            {decisionBuckets.map((bucket, index) => (
-              <div 
-                key={index} 
-                className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700"
-              >
-                <div className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 mb-1">
-                  {bucket.label}
-                </div>
-                <div className="text-lg font-bold text-zinc-800 dark:text-zinc-100">
-                  {bucket.probability}%
-                </div>
-                <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                  {bucket.min !== -Infinity && bucket.max !== Infinity 
-                    ? `${bucket.min.toFixed(0)} - ${bucket.max.toFixed(0)}`
-                    : bucket.min === -Infinity 
-                      ? `< ${bucket.max.toFixed(0)}`
-                      : `> ${bucket.min.toFixed(0)}`
-                  }
-                </div>
-              </div>
-            ))}
-          </div>
-        </SectionCard>
       )}
     </div>
   );

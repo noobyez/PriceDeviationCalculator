@@ -269,36 +269,92 @@ export default function Home() {
         </p>
       </header>
 
-      <main className="w-full flex flex-col lg:flex-row gap-6">
-        {/* Left column - Inputs & Data */}
-        <aside className="w-full lg:w-1/2 flex flex-col gap-4 self-start">
-          <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+      {/* Landing page centrata quando non ci sono dati */}
+      {!purchases && (
+        <div className="w-full max-w-md mx-auto mt-12">
+          <div className="w-full p-6 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
             <PriceHistoryUpload onUpload={handleUpload} />
           </div>
+        </div>
+      )}
 
-          {purchases && (
-            <div className="w-full flex flex-col gap-4">
-              {/* Storico prezzi e toggle Z-score */}
-              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
-                  Storico prezzi caricato
-                </h3>
-                <div className="flex flex-wrap gap-2 text-sm mb-3 max-h-32 overflow-y-auto">
-                  {intervalPricesRaw.map((price, i) => (
-                    <span
-                      key={i}
-                      className={`px-2.5 py-1 rounded-full text-sm font-medium ${outlierFlags[i] ? 'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100 ring-1 ring-red-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'}`}
-                      style={{ fontVariantNumeric: 'tabular-nums' }}
-                    >
-                      {price.toFixed(2)}
-                    </span>
-                  ))}
-                </div>
-                <label className="flex items-center gap-2 cursor-pointer">
+      {/* Layout a due colonne quando ci sono dati */}
+      {purchases && (
+        <main className="w-full flex flex-col lg:flex-row gap-6">
+          {/* Left column - Inputs & Data */}
+          <aside className="w-full lg:w-1/2 flex flex-col gap-4 self-start">
+            <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+              <PriceHistoryUpload onUpload={handleUpload} />
+            </div>
+
+            {/* Filtro per anni */}
+            <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
+                Filtro per Anno
+              </h3>
+              <div className="flex flex-wrap gap-3 items-end">
+                <div className="flex-1 min-w-[100px]">
+                  <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Da anno</label>
                   <input
-                    type="checkbox"
-                    checked={removeOutliers}
-                    onChange={(e) => setRemoveOutliers(e.target.checked)}
+                    type="text"
+                    placeholder="es. 2020"
+                    value={fromYear}
+                    onChange={(e) => setFromYear(e.target.value)}
+                    className={`input w-full text-sm py-1.5 px-3 ${invalidYearRange ? 'border-red-400' : ''}`}
+                    maxLength={4}
+                  />
+                </div>
+                <div className="flex-1 min-w-[100px]">
+                  <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">A anno</label>
+                  <input
+                    type="text"
+                    placeholder="es. 2025"
+                    value={toYear}
+                    onChange={(e) => setToYear(e.target.value)}
+                    className={`input w-full text-sm py-1.5 px-3 ${invalidYearRange ? 'border-red-400' : ''}`}
+                    maxLength={4}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleYearFilter}
+                  disabled={invalidYearRange}
+                  className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Applica
+                </button>
+              </div>
+              {invalidYearRange && (
+                <p className="text-xs text-red-500 mt-2">Intervallo anni non valido</p>
+              )}
+              {(appliedFromYear || appliedToYear) && !invalidYearRange && (
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
+                  Filtro attivo: {appliedFromYear || '...'} - {appliedToYear || '...'}
+                </p>
+              )}
+            </div>
+
+            {/* Storico prezzi e toggle Z-score */}
+            <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
+                Storico prezzi caricato
+              </h3>
+              <div className="flex flex-wrap gap-2 text-sm mb-3 max-h-32 overflow-y-auto">
+                {intervalPricesRaw.map((price, i) => (
+                  <span
+                    key={i}
+                    className={`px-2.5 py-1 rounded-full text-sm font-medium ${outlierFlags[i] ? 'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100 ring-1 ring-red-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'}`}
+                    style={{ fontVariantNumeric: 'tabular-nums' }}
+                  >
+                    {price.toFixed(2)}
+                  </span>
+                ))}
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={removeOutliers}
+                  onChange={(e) => setRemoveOutliers(e.target.checked)}
                     className="w-4 h-4 rounded cursor-pointer accent-red-500"
                     aria-label="Rimuovi outlier (Z-score)"
                   />
@@ -371,56 +427,55 @@ export default function Home() {
                   toYear={appliedToYear || null}
                 />
               )}
-            </div>
-          )}
-        </aside>
+          </aside>
 
-        {/* Right column - Chart & Analysis */}
-        <section className="w-full lg:w-1/2 flex flex-col gap-4 self-start">
-          {intervalPrices && intervalPrices.length > 0 ? (
-            <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
-                Grafico Prezzi
-              </h3>
-              <div className="w-full h-[480px]">
-                <PriceChart
+          {/* Right column - Chart & Analysis */}
+          <section className="w-full lg:w-1/2 flex flex-col gap-4 self-start">
+            {intervalPrices && intervalPrices.length > 0 ? (
+              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
+                  Grafico Prezzi
+                </h3>
+                <div className="w-full h-[480px]">
+                  <PriceChart
+                    prices={intervalPrices}
+                    regression={regression}
+                    newPrice={newPrice}
+                    isNewPriceOutlier={isNewPriceOutlier}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="w-full p-8 bg-[var(--surface)] rounded-xl border border-zinc-100 dark:border-zinc-800 text-center">
+                <p className="text-zinc-500 dark:text-zinc-400">
+                  Carica uno storico prezzi per visualizzare il grafico
+                </p>
+              </div>
+            )}
+
+            {intervalPrices && intervalPrices.length > 0 && (
+              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+                <LinearRegressionResult prices={intervalPrices} />
+              </div>
+            )}
+
+            {/* Grafico Probabilistico Prezzi Futuri */}
+            {intervalPrices && intervalPrices.length > 0 && regression && (
+              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
+                  Previsione Probabilistica
+                </h3>
+                <ProbabilisticPriceChart
                   prices={intervalPrices}
                   regression={regression}
                   newPrice={newPrice}
-                  isNewPriceOutlier={isNewPriceOutlier}
+                  futurePoints={5}
                 />
               </div>
-            </div>
-          ) : (
-            <div className="w-full p-8 bg-[var(--surface)] rounded-xl border border-zinc-100 dark:border-zinc-800 text-center">
-              <p className="text-zinc-500 dark:text-zinc-400">
-                Carica uno storico prezzi per visualizzare il grafico
-              </p>
-            </div>
-          )}
-
-          {intervalPrices && intervalPrices.length > 0 && (
-            <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-              <LinearRegressionResult prices={intervalPrices} />
-            </div>
-          )}
-
-          {/* Grafico Probabilistico Prezzi Futuri */}
-          {intervalPrices && intervalPrices.length > 0 && regression && (
-            <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
-                Previsione Probabilistica
-              </h3>
-              <ProbabilisticPriceChart
-                prices={intervalPrices}
-                regression={regression}
-                newPrice={newPrice}
-                futurePoints={5}
-              />
-            </div>
-          )}
-        </section>
-      </main>
+            )}
+          </section>
+        </main>
+      )}
     </div>
   );
 }
