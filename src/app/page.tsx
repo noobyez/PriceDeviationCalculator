@@ -7,7 +7,9 @@ import ProbabilisticPriceChart from "./ProbabilisticPriceChart";
 import OverlayHistoricalVsForecast from "./OverlayHistoricalVsForecast";
 import StatisticsPanel from "./StatisticsPanel";
 import DownloadPdfButton from "./DownloadPdfButton";
-import { useState, useMemo } from "react";
+import ProductCorrelationPanel from "./ProductCorrelationPanel";
+import { ModularLayout, PanelConfig } from "./components/modular";
+import { useState, useMemo, useCallback } from "react";
 import { Purchase } from "../models/Purchase";
 
 // Funzioni statistiche
@@ -342,6 +344,289 @@ export default function Home() {
     }
   };
 
+  // Handler per zoom pannello
+  const handleZoomPanel = useCallback((panelId: string) => {
+    // Map panel id to zoom chart id
+    const zoomMap: Record<string, string> = {
+      'priceChart': 'prices',
+      'probabilistic': 'probabilistic',
+      'overlay': 'overlay',
+    };
+    if (zoomMap[panelId]) {
+      setZoomedChart(zoomMap[panelId]);
+    }
+  }, []);
+
+  // Render dei contenuti dei pannelli
+  const renderPanelContent = useCallback((panelId: string, config: PanelConfig) => {
+    switch (panelId) {
+      case 'upload':
+        return <PriceHistoryUpload onUpload={handleUpload} />;
+
+      case 'dateFilter':
+        return (
+          <>
+            <div className="flex items-center justify-between mb-3">
+              {(appliedFromDate || appliedToDate) && (
+                <button
+                  type="button"
+                  onClick={resetDateFilter}
+                  className="text-xs text-blue-500 hover:text-blue-600 hover:underline ml-auto"
+                >
+                  Reset filtro
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-3 items-end">
+              <div className="flex-1 min-w-[120px]">
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Da data</label>
+                <input
+                  type="text"
+                  placeholder="dd/mm/yyyy"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className={`input w-full text-sm py-1.5 px-3 ${invalidDateRange ? 'border-red-400' : ''}`}
+                  maxLength={10}
+                />
+              </div>
+              <div className="flex-1 min-w-[120px]">
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">A data</label>
+                <input
+                  type="text"
+                  placeholder="dd/mm/yyyy"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className={`input w-full text-sm py-1.5 px-3 ${invalidDateRange ? 'border-red-400' : ''}`}
+                  maxLength={10}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleDateFilter}
+                disabled={invalidDateRange}
+                className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Applica
+              </button>
+            </div>
+            {invalidDateRange && (
+              <p className="text-xs text-red-500 mt-2">Formato data non valido (usa dd/mm/yyyy) o intervallo errato</p>
+            )}
+            {(appliedFromDate || appliedToDate) && !invalidDateRange && (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Filtro attivo: {formatDateDisplay(appliedFromDate) || '...'} → {formatDateDisplay(appliedToDate) || '...'}
+              </p>
+            )}
+          </>
+        );
+
+      case 'priceHistory':
+        return (
+          <>
+            <div className="flex items-center justify-between mb-3">
+              {excludedIndices.size > 0 && (
+                <button
+                  type="button"
+                  onClick={resetExclusions}
+                  className="text-xs text-blue-500 hover:text-blue-600 hover:underline ml-auto"
+                >
+                  Ripristina tutti ({excludedIndices.size} esclusi)
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">
+              Clicca su un valore per escluderlo/includerlo dall&apos;analisi
+            </p>
+            <div className="flex flex-wrap gap-2 text-sm mb-3 max-h-32 overflow-y-auto">
+              {intervalPricesRaw.map((price, i) => {
+                const isOutlier = outlierFlags[i];
+                const isExcluded = excludedIndices.has(i);
+                const dateStr = intervalDatesRaw[i];
+                const formattedDate = dateStr ? new Date(dateStr).toLocaleDateString('it-IT') : '';
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => toggleExclude(i)}
+                    title={`${formattedDate}${isExcluded ? ' (escluso)' : isOutlier ? ' (outlier Z>2)' : ''} - Clicca per ${isExcluded ? 'includere' : 'escludere'}`}
+                    className={`px-2.5 py-1 rounded-full text-sm font-medium transition-all cursor-pointer ${
+                      isExcluded 
+                        ? 'bg-zinc-300 dark:bg-zinc-600 text-zinc-500 dark:text-zinc-400 line-through opacity-60' 
+                        : isOutlier 
+                          ? 'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100 ring-1 ring-red-400' 
+                          : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-blue-100 dark:hover:bg-blue-900'
+                    }`}
+                    style={{ fontVariantNumeric: 'tabular-nums' }}
+                  >
+                    {price.toFixed(2)}
+                  </button>
+                );
+              })}
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={removeOutliers}
+                onChange={(e) => setRemoveOutliers(e.target.checked)}
+                className="w-4 h-4 rounded cursor-pointer accent-red-500"
+                aria-label="Rimuovi outlier (Z-score)"
+              />
+              <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                Rimuovi outlier (|Z| {'>'} 2)
+              </span>
+            </label>
+          </>
+        );
+
+      case 'interval':
+        return (
+          <>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {[10, 20, 50, "all"].map((opt) => (
+                <button
+                  key={String(opt)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${interval === opt ? "bg-blue-500 text-white border-blue-500" : "bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"}`}
+                  onClick={() => { setInterval(opt as number | "all"); setCustomInterval(""); }}
+                  disabled={typeof opt === "number" && filteredByDate.length < opt}
+                  style={{ opacity: typeof opt === "number" && filteredByDate.length < opt ? 0.5 : 1 }}
+                >
+                  {opt === "all" ? "Tutti" : `Ultimi ${opt}`}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 items-center">
+              <input
+                type="number"
+                min={1}
+                max={filteredByDate.length}
+                value={customInterval}
+                onChange={handleCustomIntervalChange}
+                onKeyDown={handleCustomIntervalKeyDown}
+                placeholder={`1-${filteredByDate.length}`}
+                className="input flex-1 text-sm py-1.5 px-3"
+              />
+              <button
+                type="button"
+                className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
+                onClick={applyCustomInterval}
+                disabled={!customInterval || isNaN(parseInt(customInterval, 10)) || parseInt(customInterval, 10) < 1 || parseInt(customInterval, 10) > filteredByDate.length}
+              >
+                Applica
+              </button>
+            </div>
+          </>
+        );
+
+      case 'statistics':
+        return <StatisticsPanel prices={intervalPrices} />;
+
+      case 'newPrice':
+        return (
+          <NewPriceDeviation
+            prices={intervalPrices}
+            isNewPriceOutlier={isNewPriceOutlier}
+            onDeviationChange={(price, dev) => {
+              setNewPrice(price);
+              setDeviation(dev);
+            }}
+          />
+        );
+
+      case 'download':
+        return stats && intervalPrices && intervalPrices.length > 0 ? (
+          <DownloadPdfButton
+            prices={intervalPrices}
+            stats={stats}
+            regression={regression}
+            newPrice={newPrice}
+            deviation={deviation}
+            fromDate={appliedFromDate || null}
+            toDate={appliedToDate || null}
+          />
+        ) : (
+          <p className="text-sm text-zinc-400">Carica dati per abilitare il download</p>
+        );
+
+      case 'priceChart':
+        return intervalPrices && intervalPrices.length > 0 ? (
+          <div className="w-full h-[400px]" id="chart-prices">
+            <PriceChart
+              prices={intervalPrices}
+              regression={regression}
+              newPrice={newPrice}
+              isNewPriceOutlier={isNewPriceOutlier}
+              dates={intervalDates}
+            />
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-zinc-500 dark:text-zinc-400">
+              Carica uno storico prezzi per visualizzare il grafico
+            </p>
+          </div>
+        );
+
+      case 'regression':
+        return intervalPrices && intervalPrices.length > 0 ? (
+          <LinearRegressionResult prices={intervalPrices} />
+        ) : (
+          <p className="text-sm text-zinc-400">Carica dati per vedere la regressione</p>
+        );
+
+      case 'correlation':
+        return intervalPrices && intervalPrices.length > 0 ? (
+          <ProductCorrelationPanel prices={intervalPrices} dates={intervalDates} />
+        ) : (
+          <p className="text-sm text-zinc-400">Carica dati per l&apos;analisi di correlazione</p>
+        );
+
+      case 'probabilistic':
+        return intervalPrices && intervalPrices.length > 0 && regression ? (
+          <div id="chart-probabilistic">
+            <ProbabilisticPriceChart
+              prices={intervalPrices}
+              regression={regression}
+              newPrice={newPrice}
+              futurePoints={5}
+              dates={intervalDates}
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-zinc-400">Carica dati per la previsione probabilistica</p>
+        );
+
+      case 'overlay':
+        return intervalPrices && intervalPrices.length > 0 && regression ? (
+          <div id="chart-overlay">
+            <OverlayHistoricalVsForecast
+              prices={intervalPrices}
+              regression={regression}
+              newPrice={newPrice}
+              futurePoints={5}
+              dates={intervalDates}
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-zinc-400">Carica dati per vedere storico vs previsione</p>
+        );
+
+      default:
+        return <p className="text-sm text-zinc-400">Pannello non configurato</p>;
+    }
+  }, [
+    appliedFromDate, appliedToDate, fromDate, toDate, invalidDateRange,
+    excludedIndices, intervalPricesRaw, intervalDatesRaw, outlierFlags, removeOutliers,
+    interval, customInterval, filteredByDate.length, intervalPrices, intervalDates,
+    regression, newPrice, deviation, stats, isNewPriceOutlier,
+    handleUpload, resetDateFilter, handleDateFilter, formatDateDisplay,
+    resetExclusions, toggleExclude, handleCustomIntervalChange, handleCustomIntervalKeyDown,
+    applyCustomInterval, setFromDate, setToDate, setRemoveOutliers, setInterval,
+    setCustomInterval, setNewPrice, setDeviation
+  ]);
+
   return (
     <div className="w-full min-h-screen bg-[var(--background)] p-6 lg:p-8">
       <header className="w-full text-center mb-6">
@@ -362,303 +647,15 @@ export default function Home() {
         </div>
       )}
 
-      {/* Layout a due colonne quando ci sono dati */}
+      {/* Layout modulare quando ci sono dati */}
       {purchases && (
-        <main className="w-full flex flex-col lg:flex-row gap-6">
-          {/* Left column - Inputs & Data */}
-          <aside className="w-full lg:w-1/2 flex flex-col gap-4 self-start">
-            <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-              <PriceHistoryUpload onUpload={handleUpload} />
-            </div>
-
-            {/* Filtro per data */}
-            <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Filtro per Data
-                </h3>
-                {(appliedFromDate || appliedToDate) && (
-                  <button
-                    type="button"
-                    onClick={resetDateFilter}
-                    className="text-xs text-blue-500 hover:text-blue-600 hover:underline"
-                  >
-                    Reset filtro
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-3 items-end">
-                <div className="flex-1 min-w-[120px]">
-                  <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Da data</label>
-                  <input
-                    type="text"
-                    placeholder="dd/mm/yyyy"
-                    value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
-                    className={`input w-full text-sm py-1.5 px-3 ${invalidDateRange ? 'border-red-400' : ''}`}
-                    maxLength={10}
-                  />
-                </div>
-                <div className="flex-1 min-w-[120px]">
-                  <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">A data</label>
-                  <input
-                    type="text"
-                    placeholder="dd/mm/yyyy"
-                    value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
-                    className={`input w-full text-sm py-1.5 px-3 ${invalidDateRange ? 'border-red-400' : ''}`}
-                    maxLength={10}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleDateFilter}
-                  disabled={invalidDateRange}
-                  className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Applica
-                </button>
-              </div>
-              {invalidDateRange && (
-                <p className="text-xs text-red-500 mt-2">Formato data non valido (usa dd/mm/yyyy) o intervallo errato</p>
-              )}
-              {(appliedFromDate || appliedToDate) && !invalidDateRange && (
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                  Filtro attivo: {formatDateDisplay(appliedFromDate) || '...'} → {formatDateDisplay(appliedToDate) || '...'}
-                </p>
-              )}
-            </div>
-
-            {/* Storico prezzi e toggle Z-score */}
-            <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Storico prezzi caricato
-                </h3>
-                {excludedIndices.size > 0 && (
-                  <button
-                    type="button"
-                    onClick={resetExclusions}
-                    className="text-xs text-blue-500 hover:text-blue-600 hover:underline"
-                  >
-                    Ripristina tutti ({excludedIndices.size} esclusi)
-                  </button>
-                )}
-              </div>
-              <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">
-                Clicca su un valore per escluderlo/includerlo dall&apos;analisi
-              </p>
-              <div className="flex flex-wrap gap-2 text-sm mb-3 max-h-32 overflow-y-auto">
-                {intervalPricesRaw.map((price, i) => {
-                  const isOutlier = outlierFlags[i];
-                  const isExcluded = excludedIndices.has(i);
-                  const dateStr = intervalDatesRaw[i];
-                  const formattedDate = dateStr ? new Date(dateStr).toLocaleDateString('it-IT') : '';
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => toggleExclude(i)}
-                      title={`${formattedDate}${isExcluded ? ' (escluso)' : isOutlier ? ' (outlier Z>2)' : ''} - Clicca per ${isExcluded ? 'includere' : 'escludere'}`}
-                      className={`px-2.5 py-1 rounded-full text-sm font-medium transition-all cursor-pointer ${
-                        isExcluded 
-                          ? 'bg-zinc-300 dark:bg-zinc-600 text-zinc-500 dark:text-zinc-400 line-through opacity-60' 
-                          : isOutlier 
-                            ? 'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100 ring-1 ring-red-400' 
-                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-blue-100 dark:hover:bg-blue-900'
-                      }`}
-                      style={{ fontVariantNumeric: 'tabular-nums' }}
-                    >
-                      {price.toFixed(2)}
-                    </button>
-                  );
-                })}
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={removeOutliers}
-                  onChange={(e) => setRemoveOutliers(e.target.checked)}
-                    className="w-4 h-4 rounded cursor-pointer accent-red-500"
-                    aria-label="Rimuovi outlier (Z-score)"
-                  />
-                  <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                    Rimuovi outlier (|Z| {'>'} 2)
-                  </span>
-                </label>
-              </div>
-
-              {/* Selezione intervallo */}
-              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
-                  Intervallo dati
-                </h3>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {[10, 20, 50, "all"].map((opt) => (
-                    <button
-                      key={String(opt)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${interval === opt ? "bg-blue-500 text-white border-blue-500" : "bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"}`}
-                      onClick={() => { setInterval(opt as number | "all"); setCustomInterval(""); }}
-                      disabled={typeof opt === "number" && filteredByDate.length < opt}
-                      style={{ opacity: typeof opt === "number" && filteredByDate.length < opt ? 0.5 : 1 }}
-                    >
-                      {opt === "all" ? "Tutti" : `Ultimi ${opt}`}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="number"
-                    min={1}
-                    max={filteredByDate.length}
-                    value={customInterval}
-                    onChange={handleCustomIntervalChange}
-                    onKeyDown={handleCustomIntervalKeyDown}
-                    placeholder={`1-${filteredByDate.length}`}
-                    className="input flex-1 text-sm py-1.5 px-3"
-                  />
-                  <button
-                    type="button"
-                    className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
-                    onClick={applyCustomInterval}
-                    disabled={!customInterval || isNaN(parseInt(customInterval, 10)) || parseInt(customInterval, 10) < 1 || parseInt(customInterval, 10) > filteredByDate.length}
-                  >
-                    Applica
-                  </button>
-                </div>
-              </div>
-
-              <StatisticsPanel prices={intervalPrices} />
-
-              {/* NewPriceDeviation - Decision evaluation */}
-              <NewPriceDeviation
-                prices={intervalPrices}
-                isNewPriceOutlier={isNewPriceOutlier}
-                onDeviationChange={(price, dev) => {
-                  setNewPrice(price);
-                  setDeviation(dev);
-                }}
-              />
-
-              {stats && intervalPrices && intervalPrices.length > 0 && (
-                <DownloadPdfButton
-                  prices={intervalPrices}
-                  stats={stats}
-                  regression={regression}
-                  newPrice={newPrice}
-                  deviation={deviation}
-                  fromDate={appliedFromDate || null}
-                  toDate={appliedToDate || null}
-                />
-              )}
-          </aside>
-
-          {/* Right column - Chart & Analysis */}
-          <section className="w-full lg:w-1/2 flex flex-col gap-4 self-start">
-            {intervalPrices && intervalPrices.length > 0 ? (
-              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800 relative">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                    Grafico Prezzi
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setZoomedChart('prices')}
-                    className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                    title="Espandi grafico"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500">
-                      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/>
-                    </svg>
-                  </button>
-                </div>
-                <div className="w-full h-[480px] floating-chart" id="chart-prices">
-                  <PriceChart
-                    prices={intervalPrices}
-                    regression={regression}
-                    newPrice={newPrice}
-                    isNewPriceOutlier={isNewPriceOutlier}
-                    dates={intervalDates}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="w-full p-8 bg-[var(--surface)] rounded-xl border border-zinc-100 dark:border-zinc-800 text-center">
-                <p className="text-zinc-500 dark:text-zinc-400">
-                  Carica uno storico prezzi per visualizzare il grafico
-                </p>
-              </div>
-            )}
-
-            {intervalPrices && intervalPrices.length > 0 && (
-              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-                <LinearRegressionResult prices={intervalPrices} />
-              </div>
-            )}
-
-            {/* Grafico Probabilistico Prezzi Futuri */}
-            {intervalPrices && intervalPrices.length > 0 && regression && (
-              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800 relative">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                    Previsione Probabilistica
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setZoomedChart('probabilistic')}
-                    className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                    title="Espandi grafico"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500">
-                      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/>
-                    </svg>
-                  </button>
-                </div>
-                <div id="chart-probabilistic">
-                  <ProbabilisticPriceChart
-                    prices={intervalPrices}
-                    regression={regression}
-                    newPrice={newPrice}
-                    futurePoints={5}
-                    dates={intervalDates}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Overlay Storico vs Previsione Futura */}
-            {intervalPrices && intervalPrices.length > 0 && regression && (
-              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800 relative">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                    Storico vs Previsione
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setZoomedChart('overlay')}
-                    className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                    title="Espandi grafico"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500">
-                      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/>
-                    </svg>
-                  </button>
-                </div>
-                <div id="chart-overlay">
-                  <OverlayHistoricalVsForecast
-                    prices={intervalPrices}
-                    regression={regression}
-                    newPrice={newPrice}
-                    futurePoints={5}
-                    dates={intervalDates}
-                  />
-                </div>
-              </div>
-            )}
-          </section>
+        <main className="w-full">
+          <ModularLayout
+            renderPanel={renderPanelContent}
+            onZoomPanel={handleZoomPanel}
+            zoomablePanels={['priceChart', 'probabilistic', 'overlay']}
+            hasPurchases={!!purchases}
+          />
         </main>
       )}
 
