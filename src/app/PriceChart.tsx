@@ -209,16 +209,16 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
   };
 
   return (
-    <div className="mt-12 floating-chart flex flex-col items-center w-full max-w-4xl mx-auto">
-      <div style={{ width: "100%", maxWidth: 900, height: 500 }}>
+    <div className="flex flex-col w-full h-full min-h-0">
+      <div style={{ width: "100%", height: "100%" }}>
         <Line data={data} options={options} />
       </div>
       {regression && newPrice !== null && (
-        <div className="text-center mt-4 text-white font-semibold text-lg">
+        <div className="mt-2 font-semibold text-lg">
           Differenziale: <span>{diffAbs?.toFixed(2)} ({diffPerc?.toFixed(2)}%)</span>
         </div>
       )}
-      <p className="mt-6 text-xs text-zinc-400 dark:text-zinc-500 text-center max-w-lg italic">
+      <p className="mt-3 text-xs text-zinc-400 dark:text-zinc-500 italic">
         Il modello utilizza una regressione lineare sui dati storici forniti. I risultati sono indicativi e non costituiscono previsione certa.
       </p>
     </div>

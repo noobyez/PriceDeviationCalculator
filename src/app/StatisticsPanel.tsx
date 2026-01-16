@@ -58,7 +58,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({ prices }) => {
   const iqrVal = iqr(prices);
 
   return (
-    <div className="w-full max-w-xl mx-auto mt-6 mb-8 p-6 card bg-[var(--surface)] shadow-sm rounded-2xl flex flex-col gap-3">
+    <div className="w-full mt-6 mb-8 p-6 card bg-[var(--surface)] shadow-sm rounded-2xl flex flex-col gap-3">
       <div className="flex flex-wrap gap-4 justify-between">
         <div>
           <span className="font-medium">Prezzo medio:</span> {m.toFixed(2)}

@@ -145,7 +145,6 @@ export default function NewPriceDeviation({ prices, isNewPriceOutlier = false, o
       )}
       {decisionBuckets && (
         <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-4">Previsione Probabilistica dei Prezzi</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {decisionBuckets.map((bucket, index) => (
               <div key={index} className="border p-4 rounded shadow">

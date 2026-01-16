@@ -150,7 +150,7 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
   };
 
   return (
-    <div className="w-full max-w-md mx-auto flex flex-col items-center gap-4 card bg-[var(--surface)]">
+    <div className="w-full flex flex-col gap-4 card bg-[var(--surface)]">
       <label className="label text-zinc-700">Storico prezzi (CSV, TXT, RTF, XLSX, XLS)</label>
       <div
         onDragOver={handleDragOver}

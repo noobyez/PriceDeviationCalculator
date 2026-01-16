@@ -273,173 +273,155 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--background)]">
-      <main className="w-full max-w-2xl mx-auto flex flex-col items-center justify-center">
-        <h1 className="section-title mb-12">Price Prediction Model Analysis</h1>
-        <PriceHistoryUpload onUpload={handleUpload} />
-        {purchases && (
-          <div className="card w-full max-w-xl mx-auto flex flex-col items-center">
-            {/* Selezione intervallo */}
-            <div className="flex flex-wrap gap-2 mb-2 items-center justify-center">
-              <span className="label text-zinc-500 mr-2">Intervallo:</span>
-              {[10, 20, 50, "all"].map((opt) => (
-                <button
-                  key={String(opt)}
-                  className={`px-4 py-1 rounded-full text-sm font-medium transition-all border ${interval === opt ? "bg-blue-500 text-white border-blue-500" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700"}`}
-                  onClick={() => { setInterval(opt as number | "all"); setCustomInterval(""); }}
-                  disabled={typeof opt === "number" && filteredByYear.length < opt}
-                  style={{ opacity: typeof opt === "number" && filteredByYear.length < opt ? 0.5 : 1 }}
-                >
-                  {opt === "all" ? "Tutti" : `Ultimi ${opt}`}
-                </button>
-              ))}
-            </div>
-            {/* Input intervallo personalizzato */}
-            <div className="flex gap-2 mb-6 items-center justify-center">
-              <input
-                type="number"
-                min={1}
-                max={filteredByYear.length}
-                value={customInterval}
-                onChange={handleCustomIntervalChange}
-                onKeyDown={handleCustomIntervalKeyDown}
-                placeholder={`Personalizzato (1-${filteredByYear.length})`}
-                className="input w-44 text-center text-sm py-1 px-2"
-              />
-              <button
-                type="button"
-                className="px-4 py-1 rounded-full text-sm font-medium transition-all border bg-blue-500 text-white border-blue-500"
-                onClick={applyCustomInterval}
-                disabled={!customInterval || isNaN(parseInt(customInterval, 10)) || parseInt(customInterval, 10) < 1 || parseInt(customInterval, 10) > filteredByYear.length}
-              >
-                Applica
-              </button>
-              {typeof interval === "number" && ![10, 20, 50].includes(interval) && (
-                <span className="ml-2 px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 text-xs font-semibold">
-                  Ultimi {interval}
-                </span>
+    <div className="w-full bg-[var(--background)] p-8">
+      <header className="w-full text-center mb-8">
+        <h1 className="section-title inline-block">Price Prediction Model Analysis</h1>
+      </header>
+
+      <main className="w-full flex flex-col lg:flex-row gap-8">
+        {/* Left column - data panels (mobile stacked, desktop left half) */}
+        <aside className="w-full lg:w-1/2 flex flex-col gap-4 self-start">
+          <div className="w-full p-4 card bg-[var(--surface)] rounded-lg">
+            <PriceHistoryUpload onUpload={handleUpload} />
+          </div>
+
+          {purchases && (
+            <div className="w-full flex flex-col gap-4">
+              {/* Storico prezzi e toggle Z-score */}
+              <div className="w-full p-4 bg-[var(--surface)] rounded-lg shadow-sm">
+                <h2 className="label text-lg mb-3">Storico prezzi caricato</h2>
+                <div className="flex flex-wrap gap-3 text-sm mb-3">
+                  {intervalPricesRaw.map((price, i) => (
+                    <span
+                      key={i}
+                      className={`px-3 py-1 rounded-full font-medium ${outlierFlags[i] ? 'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100 ring-1 ring-red-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'}`}
+                      style={{ fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      {price}
+                    </span>
+                  ))}
+                </div>
+                <div className="w-full flex items-center">
+                  <label className="flex items-center gap-3 cursor-pointer px-2 py-1 rounded">
+                    <input
+                      type="checkbox"
+                      checked={removeOutliers}
+                      onChange={(e) => setRemoveOutliers(e.target.checked)}
+                      className="w-5 h-5 rounded-sm cursor-pointer border-2 border-zinc-400 dark:border-zinc-500 text-red-600"
+                      aria-label="Rimuovi outlier (Z-score)"
+                    />
+                    <span className="text-base font-semibold text-zinc-800 dark:text-zinc-100">Rimuovi outlier (|Z| {'>'} 2)</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="w-full p-4 bg-[var(--surface)] rounded-lg shadow-sm">
+                <div className="label text-zinc-600 mb-3">Intervallo</div>
+                <div className="flex flex-wrap gap-2 mb-3 items-center">
+                  {[10, 20, 50, "all"].map((opt) => (
+                    <button
+                      key={String(opt)}
+                      className={`px-4 py-1 rounded-full text-sm font-medium transition-all border ${interval === opt ? "bg-blue-500 text-white border-blue-500" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700"}`}
+                      onClick={() => { setInterval(opt as number | "all"); setCustomInterval(""); }}
+                      disabled={typeof opt === "number" && filteredByYear.length < opt}
+                      style={{ opacity: typeof opt === "number" && filteredByYear.length < opt ? 0.5 : 1 }}
+                    >
+                      {opt === "all" ? "Tutti" : `Ultimi ${opt}`}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    min={1}
+                    max={filteredByYear.length}
+                    value={customInterval}
+                    onChange={handleCustomIntervalChange}
+                    onKeyDown={handleCustomIntervalKeyDown}
+                    placeholder={`Personalizzato (1-${filteredByYear.length})`}
+                    className="input w-44 text-center text-sm py-1 px-2"
+                  />
+                  <button
+                    type="button"
+                    className="px-4 py-1 rounded-full text-sm font-medium transition-all border bg-blue-500 text-white border-blue-500"
+                    onClick={applyCustomInterval}
+                    disabled={!customInterval || isNaN(parseInt(customInterval, 10)) || parseInt(customInterval, 10) < 1 || parseInt(customInterval, 10) > filteredByYear.length}
+                  >
+                    Applica
+                  </button>
+                </div>
+              </div>
+
+              <StatisticsPanel prices={intervalPrices} />
+
+              <div className="w-full p-4 bg-[var(--surface)] rounded-lg shadow-sm">
+                <NewPriceDeviation
+                  prices={intervalPrices}
+                  isNewPriceOutlier={isNewPriceOutlier}
+                  onDeviationChange={(price, dev) => {
+                    setNewPrice(price);
+                    setDeviation(dev);
+                  }}
+                />
+              </div>
+
+              {stats && intervalPrices && intervalPrices.length > 0 && (
+                <div className="w-full p-4">
+                  <DownloadPdfButton
+                    prices={intervalPrices}
+                    stats={stats}
+                    regression={regression}
+                    newPrice={newPrice}
+                    deviation={deviation}
+                    fromYear={appliedFromYear || null}
+                    toYear={appliedToYear || null}
+                  />
+                </div>
+              )}
+
+              {decisionBuckets && (
+                <div className="w-full p-4">
+                  <h2 className="text-xl font-semibold mb-4">Previsione Probabilistica dei Prezzi</h2>
+                  <div className="grid grid-cols-1 gap-4">
+                    {decisionBuckets.map((bucket, index) => (
+                      <div key={index} className="border p-4 rounded shadow">
+                        <h3 className="font-semibold">{bucket.label}</h3>
+                        <p>Intervallo Prezzi: {bucket.min === -Infinity ? "< " : ""}{bucket.min !== -Infinity ? bucket.min.toFixed(2) : ""} - {bucket.max === Infinity ? "> " : ""}{bucket.max !== Infinity ? bucket.max.toFixed(2) : ""}</p>
+                        <p>Probabilità: {bucket.probability}%</p>
+                        <p>{bucket.explanation}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
-            <h2 className="label text-lg mb-6">Storico prezzi caricato</h2>
-            <div className="flex flex-wrap gap-3 text-lg mb-2">
-              {intervalPricesRaw.map((price, i) => (
-                <span
-                  key={i}
-                  className={`px-4 py-1 rounded-full shadow-sm font-medium ${
-                    outlierFlags[i]
-                      ? 'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100 ring-1 ring-red-400'
-                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
-                  }`}
-                  style={{ fontVariantNumeric: "tabular-nums" }}
-                >
-                  {price}
-                </span>
-              ))}
-            </div>
+          )}
+        </aside>
 
-            {/* Toggle Z-score: sotto lo storico prezzi e sopra le statistiche */}
-            <div className="w-full flex items-center justify-center mb-6">
-              <label className="flex items-center gap-4 cursor-pointer px-3 py-2 rounded-lg border-2 border-zinc-300 dark:border-zinc-600 bg-white/60 dark:bg-black/40">
-                <input
-                  type="checkbox"
-                  checked={removeOutliers}
-                  onChange={(e) => setRemoveOutliers(e.target.checked)}
-                  className="w-6 h-6 rounded-sm cursor-pointer border-2 border-zinc-400 dark:border-zinc-500 text-red-600 focus:outline-none"
-                  aria-label="Rimuovi outlier (Z-score)"
+        {/* Right column - chart (mobile stacked, desktop right half) */}
+        <section className="w-full lg:w-1/2 flex flex-col gap-4 self-start">
+          {intervalPrices && intervalPrices.length > 0 ? (
+            <div className="w-full p-4 card bg-[var(--surface)] rounded-lg">
+              <div className="w-full h-[520px]">
+                <PriceChart
+                  prices={intervalPrices}
+                  regression={regression}
+                  newPrice={newPrice}
+                  isNewPriceOutlier={isNewPriceOutlier}
                 />
-                <span className="text-base font-semibold text-zinc-800 dark:text-zinc-100">Rimuovi outlier (|Z| {'>'} 2)</span>
-              </label>
-            </div>
-
-            {intervalPrices && intervalPrices.length > 0 ? (
-              <>
-                <StatisticsPanel prices={intervalPrices} />
+              </div>
+              <div className="mt-4">
                 <LinearRegressionResult prices={intervalPrices} />
-              </>
-            ) : (
+              </div>
+            </div>
+          ) : (
+            <div className="w-full p-4">
               <div className="mt-2 mb-4 px-4 py-3 rounded-lg text-zinc-500 text-sm w-full text-center">
                 Nessun dato sufficiente per calcolare statistiche e regressione.
               </div>
-            )}
-            <div className="flex flex-col gap-2 mb-6 items-center justify-center">
-              <h2 className="label text-lg">Seleziona intervallo anni</h2>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="number"
-                  placeholder="Anno da"
-                  value={fromYear}
-                  onChange={(e) => setFromYear(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); } }}
-                  onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); } }}
-                  className="input input-bordered w-full"
-                />
-                <input
-                  type="number"
-                  placeholder="Anno a"
-                  value={toYear}
-                  onChange={(e) => setToYear(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); } }}
-                  onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); } }}
-                  className="input input-bordered w-full"
-                />
-                <button
-                  type="button"
-                  onClick={handleYearFilter}
-                  className="ml-2 px-4 py-1 rounded-full text-sm font-medium transition-all border bg-blue-500 text-white border-blue-500"
-                >
-                  Applica
-                </button>
-              </div>
-              {invalidYearRange && (
-                <div className="text-red-500 text-sm mt-2">
-                  Intervallo anni non valido. Assicurati che "Anno da" sia minore o uguale a "Anno a".
-                </div>
-              )}
             </div>
-            {intervalPrices && intervalPrices.length > 0 && (
-              <NewPriceDeviation 
-                prices={intervalPrices} 
-                isNewPriceOutlier={isNewPriceOutlier}
-                onDeviationChange={(price, dev) => {
-                  setNewPrice(price);
-                  setDeviation(dev);
-                }}
-              />
-            )}
-            {stats && intervalPrices && intervalPrices.length > 0 && (
-              <DownloadPdfButton
-                prices={intervalPrices}
-                stats={stats}
-                regression={regression}
-                newPrice={newPrice}
-                deviation={deviation}
-                fromYear={appliedFromYear || null}
-                toYear={appliedToYear || null}
-              />
-            )}
-            <div className="mt-8">
-              <h2 className="text-xl font-semibold mb-4">Previsione Probabilistica dei Prezzi</h2>
-              <button
-                onClick={handleDecisionBucketsCalculation}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mb-4"
-              >
-                Genera Previsione
-              </button>
-              {decisionBuckets && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {decisionBuckets.map((bucket, index) => (
-                    <div key={index} className="border p-4 rounded shadow">
-                      <h3 className="font-semibold">{bucket.label}</h3>
-                      <p>Intervallo Prezzi: {bucket.min === -Infinity ? "< " : ""}{bucket.min !== -Infinity ? bucket.min.toFixed(2) : ""} - {bucket.max === Infinity ? "> " : ""}{bucket.max !== Infinity ? bucket.max.toFixed(2) : ""}</p>
-                      <p>Probabilità: {bucket.probability}%</p>
-                      <p>{bucket.explanation}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+          )}
+        </section>
       </main>
     </div>
   );
