@@ -7,6 +7,7 @@ import StatisticsPanel from "./StatisticsPanel";
 import DownloadPdfButton from "./DownloadPdfButton";
 import { useState, useMemo } from "react";
 import { Purchase } from "../models/Purchase";
+import { generateDecisionBuckets } from "../utils/probabilisticForecast";
 
 // Funzioni statistiche
 function mean(arr: number[]) {
@@ -81,6 +82,8 @@ export default function Home() {
 
   // Toggle per rimuovere valori outlier identificati tramite Z-score (|Z| > 2)
   const [removeOutliers, setRemoveOutliers] = useState<boolean>(false);
+
+  const [decisionBuckets, setDecisionBuckets] = useState<{ label: string; min: number; max: number; probability: number; explanation: string }[] | null>(null);
 
   const handleUpload = (uploadedPurchases: Purchase[]) => {
     try {
@@ -257,6 +260,18 @@ export default function Home() {
     }
   };
 
+  const handleDecisionBucketsCalculation = () => {
+    if (!purchases || purchases.length < 2) return;
+
+    const prices = purchases.map((p) => p.price);
+    const regression = linearRegression(prices);
+    if (!regression) return;
+
+    const predictedPrice = regression.predicted;
+    const buckets = generateDecisionBuckets(prices, predictedPrice);
+    setDecisionBuckets(buckets);
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--background)]">
       <main className="w-full max-w-2xl mx-auto flex flex-col items-center justify-center">
@@ -402,6 +417,27 @@ export default function Home() {
                 toYear={appliedToYear || null}
               />
             )}
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold mb-4">Previsione Probabilistica dei Prezzi</h2>
+              <button
+                onClick={handleDecisionBucketsCalculation}
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mb-4"
+              >
+                Genera Previsione
+              </button>
+              {decisionBuckets && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {decisionBuckets.map((bucket, index) => (
+                    <div key={index} className="border p-4 rounded shadow">
+                      <h3 className="font-semibold">{bucket.label}</h3>
+                      <p>Intervallo Prezzi: {bucket.min === -Infinity ? "< " : ""}{bucket.min !== -Infinity ? bucket.min.toFixed(2) : ""} - {bucket.max === Infinity ? "> " : ""}{bucket.max !== Infinity ? bucket.max.toFixed(2) : ""}</p>
+                      <p>Probabilità: {bucket.probability}%</p>
+                      <p>{bucket.explanation}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
