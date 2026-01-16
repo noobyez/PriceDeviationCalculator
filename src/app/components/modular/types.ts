@@ -11,6 +11,8 @@ export interface PanelConfig {
 
 export interface LayoutState {
   panels: PanelConfig[];
+  isEssentialMode?: boolean;
+  savedVisibility?: Record<string, boolean>; // Salva lo stato prima di Essential mode
 }
 
 export type PanelAction =
@@ -22,7 +24,9 @@ export type PanelAction =
   | { type: 'TOGGLE_COLLAPSE'; id: string }
   | { type: 'RESIZE_PANEL'; id: string; height: number }
   | { type: 'RESET_LAYOUT' }
-  | { type: 'RESTORE_ALL' };
+  | { type: 'RESTORE_ALL' }
+  | { type: 'SET_ESSENTIAL_MODE'; essentialIds: string[] }
+  | { type: 'EXIT_ESSENTIAL_MODE' };
 
 export const DEFAULT_PANELS: PanelConfig[] = [
   // Left column panels
@@ -115,6 +119,35 @@ export function layoutReducer(state: LayoutState, action: PanelAction): LayoutSt
       return {
         ...state,
         panels: state.panels.map(p => ({ ...p, visible: true })),
+      };
+    }
+    case 'SET_ESSENTIAL_MODE': {
+      // Salva lo stato di visibilità corrente prima di passare a essential mode
+      const savedVisibility: Record<string, boolean> = {};
+      state.panels.forEach(p => {
+        savedVisibility[p.id] = p.visible;
+      });
+      
+      return {
+        ...state,
+        isEssentialMode: true,
+        savedVisibility,
+        panels: state.panels.map(p => ({
+          ...p,
+          visible: action.essentialIds.includes(p.id),
+        })),
+      };
+    }
+    case 'EXIT_ESSENTIAL_MODE': {
+      // Ripristina la visibilità salvata
+      return {
+        ...state,
+        isEssentialMode: false,
+        panels: state.panels.map(p => ({
+          ...p,
+          visible: state.savedVisibility?.[p.id] ?? true,
+        })),
+        savedVisibility: undefined,
       };
     }
     default:

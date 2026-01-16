@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { PanelConfig } from './types';
@@ -29,9 +29,17 @@ export default function ModularPanel({
 }: ModularPanelProps) {
   const [isResizing, setIsResizing] = useState(false);
   const [showMoveMenu, setShowMoveMenu] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(true);
   const panelRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
   const startHeight = useRef(0);
+
+  // Trigger enter animation on mount
+  useEffect(() => {
+    setIsAnimating(true);
+    const timer = setTimeout(() => setIsAnimating(false), 350);
+    return () => clearTimeout(timer);
+  }, []);
 
   const {
     attributes,
@@ -44,7 +52,7 @@ export default function ModularPanel({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition || 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
     opacity: isDragging ? 0.5 : 1,
     height: config.collapsed ? 'auto' : (config.height ? `${config.height}px` : 'auto'),
     minHeight: config.collapsed ? 'auto' : (config.minHeight ? `${config.minHeight}px` : 'auto'),
@@ -84,8 +92,10 @@ export default function ModularPanel({
       style={style}
       className={`
         w-full bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800
+        panel-transition
         ${isDragging ? 'ring-2 ring-blue-400 shadow-lg' : ''}
         ${isResizing ? 'select-none' : ''}
+        ${isAnimating ? 'panel-enter' : ''}
         ${className}
       `}
     >
