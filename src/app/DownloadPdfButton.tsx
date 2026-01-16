@@ -18,8 +18,8 @@ interface DownloadPdfButtonProps {
   regression: { a: number; b: number; predicted: number; r2?: number } | null;
   newPrice: number | null;
   deviation: { abs: number; perc: number } | null;
-  fromYear?: string | null;
-  toYear?: string | null;
+  fromDate?: string | null;
+  toDate?: string | null;
 }
 
 export default function DownloadPdfButton({
@@ -28,8 +28,8 @@ export default function DownloadPdfButton({
   regression,
   newPrice,
   deviation,
-  fromYear,
-  toYear,
+  fromDate,
+  toDate,
 }: DownloadPdfButtonProps) {
   const handleDownload = async () => {
     // dynamic imports to ensure these run only in the browser runtime
@@ -54,11 +54,11 @@ export default function DownloadPdfButton({
     doc.setTextColor(100);
     doc.text(`Report generato il ${new Date().toLocaleDateString("it-IT")}`, pageWidth / 2, 28, { align: "center" });
 
-    // Anni usati per l'analisi
+    // Date/periodo usati per l'analisi
     doc.setFontSize(10);
     doc.setTextColor(50);
-    const yearsLabel = (fromYear && toYear) ? `${fromYear} - ${toYear}` : (fromYear ? `${fromYear} -` : (toYear ? `- ${toYear}` : "Tutti"));
-    doc.text(`Anni analizzati: ${yearsLabel}`, 14, 36);
+    const dateLabel = (fromDate && toDate) ? `${fromDate} → ${toDate}` : (fromDate ? `Dal ${fromDate}` : (toDate ? `Fino al ${toDate}` : "Tutti i dati"));
+    doc.text(`Periodo analizzato: ${dateLabel}`, 14, 36);
 
     // Statistiche
     doc.setFontSize(14);

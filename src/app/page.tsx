@@ -75,17 +75,51 @@ export default function Home() {
   const [customInterval, setCustomInterval] = useState<string>("");
   const [newPrice, setNewPrice] = useState<number | null>(null);
   const [deviation, setDeviation] = useState<{ abs: number; perc: number } | null>(null);
-  const [fromYear, setFromYear] = useState<string>("");
-  const [toYear, setToYear] = useState<string>("");
-  // Applied year range (only updated when user clicks "Applica")
-  const [appliedFromYear, setAppliedFromYear] = useState<string>("");
-  const [appliedToYear, setAppliedToYear] = useState<string>("");
+  
+  // Date filter (formato dd/mm/yyyy)
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
+  const [appliedFromDate, setAppliedFromDate] = useState<string>("");
+  const [appliedToDate, setAppliedToDate] = useState<string>("");
 
   // Toggle per rimuovere valori outlier identificati tramite Z-score (|Z| > 2)
   const [removeOutliers, setRemoveOutliers] = useState<boolean>(false);
 
   // Indici esclusi manualmente dall'utente (basati su filteredByYear)
   const [excludedIndices, setExcludedIndices] = useState<Set<number>>(new Set());
+
+  // Stato per zoom grafici
+  const [zoomedChart, setZoomedChart] = useState<string | null>(null);
+
+  // Helper per parsare data nel formato dd/mm/yyyy
+  const parseDateString = (dateStr: string): Date | null => {
+    if (!dateStr) return null;
+    // Supporta dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy
+    const parts = dateStr.split(/[\/\-\.]/);
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // mesi 0-based
+      let year = parseInt(parts[2], 10);
+      // Supporta anni a 2 cifre (es. 24 -> 2024)
+      if (year < 100) {
+        year = year > 50 ? 1900 + year : 2000 + year;
+      }
+      const date = new Date(year, month, day);
+      if (!isNaN(date.getTime()) && date.getDate() === day && date.getMonth() === month) {
+        return date;
+      }
+    }
+    return null;
+  };
+
+  // Formatta una data per la visualizzazione
+  const formatDateDisplay = (dateStr: string): string => {
+    const d = parseDateString(dateStr);
+    if (d) {
+      return d.toLocaleDateString('it-IT');
+    }
+    return dateStr;
+  };
 
   const handleUpload = (uploadedPurchases: Purchase[]) => {
     try {
@@ -102,85 +136,84 @@ export default function Home() {
     }
   };
 
-  // Apply year filter when user clicks Applica
-  const handleYearFilter = () => {
-    const fromRaw = fromYear.trim();
-    const toRaw = toYear.trim();
+  // Apply date filter when user clicks Applica
+  const handleDateFilter = () => {
+    const fromRaw = fromDate.trim();
+    const toRaw = toDate.trim();
 
-    const isFullYear = (s: string) => /^\d{4}$/.test(s);
+    const fromParsed = parseDateString(fromRaw);
+    const toParsed = parseDateString(toRaw);
 
-    // If a year string is provided, require it to be a full 4-digit year
-    if (fromRaw !== "" && !isFullYear(fromRaw)) return;
-    if (toRaw !== "" && !isFullYear(toRaw)) return;
+    // Verifica validità se inseriti
+    if (fromRaw !== "" && !fromParsed) return;
+    if (toRaw !== "" && !toParsed) return;
 
-    const fromParsed = fromRaw !== "" ? parseInt(fromRaw, 10) : NaN;
-    const toParsed = toRaw !== "" ? parseInt(toRaw, 10) : NaN;
-    const from = !Number.isNaN(fromParsed) ? fromParsed : null;
-    const to = !Number.isNaN(toParsed) ? toParsed : null;
-
-    if (from !== null && to !== null && from > to) {
-      // invalid range: do not apply
+    // Verifica che from <= to
+    if (fromParsed && toParsed && fromParsed > toParsed) {
       return;
     }
 
-    setAppliedFromYear(fromRaw);
-    setAppliedToYear(toRaw);
+    setAppliedFromDate(fromRaw);
+    setAppliedToDate(toRaw);
   };
 
-  // Validate year range to show UI feedback and avoid accidental submits
-  const invalidYearRange = useMemo(() => {
-    const fromRaw = fromYear.trim();
-    const toRaw = toYear.trim();
-    const isFullYear = (s: string) => /^\d{4}$/.test(s);
+  // Validate date range to show UI feedback
+  const invalidDateRange = useMemo((): boolean => {
+    const fromRaw = fromDate.trim();
+    const toRaw = toDate.trim();
 
-    if (fromRaw !== "" && !isFullYear(fromRaw)) return true;
-    if (toRaw !== "" && !isFullYear(toRaw)) return true;
+    if (fromRaw !== "" && !parseDateString(fromRaw)) return true;
+    if (toRaw !== "" && !parseDateString(toRaw)) return true;
 
-    const fromParsed = fromRaw !== "" ? parseInt(fromRaw, 10) : NaN;
-    const toParsed = toRaw !== "" ? parseInt(toRaw, 10) : NaN;
-    const from = !Number.isNaN(fromParsed) ? fromParsed : null;
-    const to = !Number.isNaN(toParsed) ? toParsed : null;
-    return from !== null && to !== null && from > to;
-  }, [fromYear, toYear]);
+    const fromParsed = parseDateString(fromRaw);
+    const toParsed = parseDateString(toRaw);
 
-  // Use appliedFromYear/appliedToYear so typing does not immediately change layout
-  const filteredByYear = useMemo(() => {
+    return !!(fromParsed && toParsed && fromParsed > toParsed);
+  }, [fromDate, toDate]);
+
+  // Reset date filter
+  const resetDateFilter = () => {
+    setFromDate("");
+    setToDate("");
+    setAppliedFromDate("");
+    setAppliedToDate("");
+  };
+
+  // Filtra purchases per intervallo di date
+  const filteredByDate = useMemo(() => {
     if (!purchases) return [];
-    const fromRaw = appliedFromYear.trim();
-    const toRaw = appliedToYear.trim();
-    const fromParsed = fromRaw !== "" ? parseInt(fromRaw, 10) : NaN;
-    const toParsed = toRaw !== "" ? parseInt(toRaw, 10) : NaN;
-    const from = !Number.isNaN(fromParsed) ? fromParsed : null;
-    const to = !Number.isNaN(toParsed) ? toParsed : null;
+    
+    const fromParsed = parseDateString(appliedFromDate);
+    const toParsed = parseDateString(appliedToDate);
 
     return purchases.filter((purchase) => {
       try {
         const d = new Date(purchase.date);
-        if (isNaN(d.getTime())) return false; // skip invalid dates
-        const purchaseYear = d.getFullYear();
-        const afterFrom = from === null ? true : purchaseYear >= from;
-        const beforeTo = to === null ? true : purchaseYear <= to;
+        if (isNaN(d.getTime())) return false;
+        
+        const afterFrom = !fromParsed || d >= fromParsed;
+        const beforeTo = !toParsed || d <= toParsed;
         return afterFrom && beforeTo;
       } catch {
         return false;
       }
     });
-  }, [purchases, appliedFromYear, appliedToYear]);
+  }, [purchases, appliedFromDate, appliedToDate]);
 
-  // fullPrices: all prices within selected years (preserve original order and duplicates)
+  // fullPrices: all prices within selected dates (preserve original order and duplicates)
   const fullPrices = useMemo(() =>
-    filteredByYear
+    filteredByDate
       .map((p) => Number(p.price))
       .filter((v) => Number.isFinite(v)),
-    [filteredByYear]
+    [filteredByDate]
   );
 
   // fullDates: date corrispondenti ai fullPrices
   const fullDates = useMemo(() =>
-    filteredByYear
+    filteredByDate
       .filter((p) => Number.isFinite(Number(p.price)))
       .map((p) => p.date),
-    [filteredByYear]
+    [filteredByDate]
   );
 
   // intervalPricesRaw: dati originali dopo selezione intervallo (usati per visualizzazione e per calcolare Z-score)
@@ -338,49 +371,63 @@ export default function Home() {
               <PriceHistoryUpload onUpload={handleUpload} />
             </div>
 
-            {/* Filtro per anni */}
+            {/* Filtro per data */}
             <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
-                Filtro per Anno
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  Filtro per Data
+                </h3>
+                {(appliedFromDate || appliedToDate) && (
+                  <button
+                    type="button"
+                    onClick={resetDateFilter}
+                    className="text-xs text-blue-500 hover:text-blue-600 hover:underline"
+                  >
+                    Reset filtro
+                  </button>
+                )}
+              </div>
               <div className="flex flex-wrap gap-3 items-end">
-                <div className="flex-1 min-w-[100px]">
-                  <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Da anno</label>
+                <div className="flex-1 min-w-[120px]">
+                  <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Da data</label>
                   <input
                     type="text"
-                    placeholder="es. 2020"
-                    value={fromYear}
-                    onChange={(e) => setFromYear(e.target.value)}
-                    className={`input w-full text-sm py-1.5 px-3 ${invalidYearRange ? 'border-red-400' : ''}`}
-                    maxLength={4}
+                    placeholder="dd/mm/yyyy"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className={`input w-full text-sm py-1.5 px-3 ${invalidDateRange ? 'border-red-400' : ''}`}
+                    maxLength={10}
                   />
                 </div>
-                <div className="flex-1 min-w-[100px]">
-                  <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">A anno</label>
+                <div className="flex-1 min-w-[120px]">
+                  <label className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">A data</label>
                   <input
                     type="text"
-                    placeholder="es. 2025"
-                    value={toYear}
-                    onChange={(e) => setToYear(e.target.value)}
-                    className={`input w-full text-sm py-1.5 px-3 ${invalidYearRange ? 'border-red-400' : ''}`}
-                    maxLength={4}
+                    placeholder="dd/mm/yyyy"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className={`input w-full text-sm py-1.5 px-3 ${invalidDateRange ? 'border-red-400' : ''}`}
+                    maxLength={10}
                   />
                 </div>
                 <button
                   type="button"
-                  onClick={handleYearFilter}
-                  disabled={invalidYearRange}
+                  onClick={handleDateFilter}
+                  disabled={invalidDateRange}
                   className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Applica
                 </button>
               </div>
-              {invalidYearRange && (
-                <p className="text-xs text-red-500 mt-2">Intervallo anni non valido</p>
+              {invalidDateRange && (
+                <p className="text-xs text-red-500 mt-2">Formato data non valido (usa dd/mm/yyyy) o intervallo errato</p>
               )}
-              {(appliedFromYear || appliedToYear) && !invalidYearRange && (
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
-                  Filtro attivo: {appliedFromYear || '...'} - {appliedToYear || '...'}
+              {(appliedFromDate || appliedToDate) && !invalidDateRange && (
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  Filtro attivo: {formatDateDisplay(appliedFromDate) || '...'} → {formatDateDisplay(appliedToDate) || '...'}
                 </p>
               )}
             </div>
@@ -455,8 +502,8 @@ export default function Home() {
                       key={String(opt)}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${interval === opt ? "bg-blue-500 text-white border-blue-500" : "bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"}`}
                       onClick={() => { setInterval(opt as number | "all"); setCustomInterval(""); }}
-                      disabled={typeof opt === "number" && filteredByYear.length < opt}
-                      style={{ opacity: typeof opt === "number" && filteredByYear.length < opt ? 0.5 : 1 }}
+                      disabled={typeof opt === "number" && filteredByDate.length < opt}
+                      style={{ opacity: typeof opt === "number" && filteredByDate.length < opt ? 0.5 : 1 }}
                     >
                       {opt === "all" ? "Tutti" : `Ultimi ${opt}`}
                     </button>
@@ -466,18 +513,18 @@ export default function Home() {
                   <input
                     type="number"
                     min={1}
-                    max={filteredByYear.length}
+                    max={filteredByDate.length}
                     value={customInterval}
                     onChange={handleCustomIntervalChange}
                     onKeyDown={handleCustomIntervalKeyDown}
-                    placeholder={`1-${filteredByYear.length}`}
+                    placeholder={`1-${filteredByDate.length}`}
                     className="input flex-1 text-sm py-1.5 px-3"
                   />
                   <button
                     type="button"
                     className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
                     onClick={applyCustomInterval}
-                    disabled={!customInterval || isNaN(parseInt(customInterval, 10)) || parseInt(customInterval, 10) < 1 || parseInt(customInterval, 10) > filteredByYear.length}
+                    disabled={!customInterval || isNaN(parseInt(customInterval, 10)) || parseInt(customInterval, 10) < 1 || parseInt(customInterval, 10) > filteredByDate.length}
                   >
                     Applica
                   </button>
@@ -503,8 +550,8 @@ export default function Home() {
                   regression={regression}
                   newPrice={newPrice}
                   deviation={deviation}
-                  fromYear={appliedFromYear || null}
-                  toYear={appliedToYear || null}
+                  fromDate={appliedFromDate || null}
+                  toDate={appliedToDate || null}
                 />
               )}
           </aside>
@@ -512,10 +559,22 @@ export default function Home() {
           {/* Right column - Chart & Analysis */}
           <section className="w-full lg:w-1/2 flex flex-col gap-4 self-start">
             {intervalPrices && intervalPrices.length > 0 ? (
-              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
-                  Grafico Prezzi
-                </h3>
+              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800 relative">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    Grafico Prezzi
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setZoomedChart('prices')}
+                    className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                    title="Espandi grafico"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500">
+                      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/>
+                    </svg>
+                  </button>
+                </div>
                 <div className="w-full h-[480px] floating-chart" id="chart-prices">
                   <PriceChart
                     prices={intervalPrices}
@@ -542,10 +601,22 @@ export default function Home() {
 
             {/* Grafico Probabilistico Prezzi Futuri */}
             {intervalPrices && intervalPrices.length > 0 && regression && (
-              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
-                  Previsione Probabilistica
-                </h3>
+              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800 relative">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    Previsione Probabilistica
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setZoomedChart('probabilistic')}
+                    className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                    title="Espandi grafico"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500">
+                      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/>
+                    </svg>
+                  </button>
+                </div>
                 <div id="chart-probabilistic">
                   <ProbabilisticPriceChart
                     prices={intervalPrices}
@@ -560,10 +631,22 @@ export default function Home() {
 
             {/* Overlay Storico vs Previsione Futura */}
             {intervalPrices && intervalPrices.length > 0 && regression && (
-              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
-                  Storico vs Previsione
-                </h3>
+              <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800 relative">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    Storico vs Previsione
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setZoomedChart('overlay')}
+                    className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                    title="Espandi grafico"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500">
+                      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/>
+                    </svg>
+                  </button>
+                </div>
                 <div id="chart-overlay">
                   <OverlayHistoricalVsForecast
                     prices={intervalPrices}
@@ -577,6 +660,71 @@ export default function Home() {
             )}
           </section>
         </main>
+      )}
+
+      {/* Modal Zoom Grafico */}
+      {zoomedChart && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setZoomedChart(null)}
+        >
+          <div 
+            className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-700">
+              <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-100">
+                {zoomedChart === 'prices' && 'Grafico Prezzi'}
+                {zoomedChart === 'probabilistic' && 'Previsione Probabilistica'}
+                {zoomedChart === 'overlay' && 'Storico vs Previsione'}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setZoomedChart(null)}
+                className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500">
+                  <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                </svg>
+              </button>
+            </div>
+            <div className="p-6">
+              {zoomedChart === 'prices' && intervalPrices && (
+                <div className="h-[70vh]">
+                  <PriceChart
+                    prices={intervalPrices}
+                    regression={regression}
+                    newPrice={newPrice}
+                    isNewPriceOutlier={isNewPriceOutlier}
+                    dates={intervalDates}
+                  />
+                </div>
+              )}
+              {zoomedChart === 'probabilistic' && intervalPrices && regression && (
+                <div className="h-[70vh]">
+                  <ProbabilisticPriceChart
+                    prices={intervalPrices}
+                    regression={regression}
+                    newPrice={newPrice}
+                    futurePoints={5}
+                    dates={intervalDates}
+                  />
+                </div>
+              )}
+              {zoomedChart === 'overlay' && intervalPrices && regression && (
+                <div className="h-[70vh]">
+                  <OverlayHistoricalVsForecast
+                    prices={intervalPrices}
+                    regression={regression}
+                    newPrice={newPrice}
+                    futurePoints={5}
+                    dates={intervalDates}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
