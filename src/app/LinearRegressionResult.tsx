@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { Tooltip } from "./components/help";
 
 interface LinearRegressionResultProps {
   prices: number[];
@@ -49,23 +50,29 @@ export default function LinearRegressionResult({ prices }: LinearRegressionResul
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-        Analisi Trend
-      </h3>
+      <Tooltip content="La regressione lineare mostra il trend medio atteso dei prezzi basato sullo storico.">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+          Analisi Trend
+        </h3>
+      </Tooltip>
       
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <div className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-            Prezzo Atteso
-          </div>
+          <Tooltip content="Prezzo previsto per il prossimo acquisto, calcolato dal trend storico." position="bottom">
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+              Prezzo Atteso
+            </div>
+          </Tooltip>
           <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400" style={{ fontVariantNumeric: 'tabular-nums' }}>
             {result.predicted.toFixed(2)}
           </div>
         </div>
         <div>
-          <div className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
-            Confidenza (R²)
-          </div>
+          <Tooltip content="Quanto è affidabile questa previsione: alto (>70%) = molto affidabile, basso (<40%) = poco affidabile." position="bottom">
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+              Confidenza (R²)
+            </div>
+          </Tooltip>
           <div className={`text-2xl font-bold ${confidenceColors[confidenceLevel]}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
             {(result.r2 * 100).toFixed(1)}%
           </div>

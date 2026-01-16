@@ -9,6 +9,7 @@ import StatisticsPanel from "./StatisticsPanel";
 import DownloadPdfButton from "./DownloadPdfButton";
 import ProductCorrelationPanel from "./ProductCorrelationPanel";
 import { ModularLayout, PanelConfig } from "./components/modular";
+import { HelpPanel, HelpToggle } from "./components/help";
 import { useState, useMemo, useCallback } from "react";
 import { Purchase } from "../models/Purchase";
 
@@ -629,6 +630,14 @@ export default function Home() {
 
   return (
     <div className="w-full min-h-screen bg-[var(--background)] p-6 lg:p-8">
+      {/* Help Toggle in alto a destra */}
+      <div className="fixed top-4 right-4 z-40">
+        <HelpToggle />
+      </div>
+
+      {/* Help Panel (pulsante in basso a sinistra) */}
+      <HelpPanel />
+
       <header className="w-full text-center mb-6">
         <h1 className="text-2xl lg:text-3xl font-bold text-zinc-800 dark:text-zinc-100">
           Price Prediction Model Analysis

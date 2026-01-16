@@ -1,6 +1,6 @@
-// filepath: /Users/marco/Desktop/PY.PROJECT/supplier-risk/src/app/ProductCorrelationPanel.tsx
 "use client";
 import React, { useMemo } from 'react';
+import { Tooltip } from './components/help';
 
 interface ProductCorrelationPanelProps {
   prices: number[];
@@ -118,9 +118,11 @@ export default function ProductCorrelationPanel({ prices, dates }: ProductCorrel
     <div className="space-y-4">
       {/* Autocorrelazioni */}
       <div>
-        <h4 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
-          Autocorrelazione (persistenza prezzi)
-        </h4>
+        <Tooltip content="Misura quanto i prezzi seguono un pattern simile nel tempo. Valori alti indicano prezzi prevedibili.">
+          <h4 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
+            Autocorrelazione
+          </h4>
+        </Tooltip>
         <div className="grid grid-cols-3 gap-2">
           {[
             { label: 'Lag 1', value: analysis.lag1 },
@@ -144,9 +146,11 @@ export default function ProductCorrelationPanel({ prices, dates }: ProductCorrel
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-900/30 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-lg">📊</span>
-            <h4 className="text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase">
-              Volatilità
-            </h4>
+            <Tooltip content="Indica quanto il prezzo è instabile nel tempo. Alta volatilità = maggiore rischio prezzo." position="right">
+              <h4 className="text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase">
+                Volatilità
+              </h4>
+            </Tooltip>
           </div>
           <p className="text-lg font-bold text-purple-900 dark:text-purple-100">
             {analysis.volatility.toFixed(2)}%
@@ -160,9 +164,11 @@ export default function ProductCorrelationPanel({ prices, dates }: ProductCorrel
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/30 rounded-lg p-3">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-lg">{getTrendIcon(analysis.trendStrength)}</span>
-            <h4 className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase">
-              Forza Trend
-            </h4>
+            <Tooltip content="Mostra la direzione generale dei prezzi: rialzista (su), ribassista (giù) o stabile." position="left">
+              <h4 className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase">
+                Forza Trend
+              </h4>
+            </Tooltip>
           </div>
           <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
             {(analysis.trendStrength * 100).toFixed(1)}%
@@ -177,9 +183,11 @@ export default function ProductCorrelationPanel({ prices, dates }: ProductCorrel
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-lg">{analysis.momentum > 0 ? '🚀' : analysis.momentum < 0 ? '🔻' : '⚖️'}</span>
-              <h4 className="text-xs font-semibold text-amber-700 dark:text-amber-300 uppercase">
-                Momentum Recente
-              </h4>
+              <Tooltip content="Pressione recente di salita o discesa dei prezzi rispetto al periodo precedente.">
+                <h4 className="text-xs font-semibold text-amber-700 dark:text-amber-300 uppercase">
+                  Momentum Recente
+                </h4>
+              </Tooltip>
             </div>
             <div className="text-right">
               <p className={`text-lg font-bold ${analysis.momentum > 0 ? 'text-emerald-600' : analysis.momentum < 0 ? 'text-red-600' : 'text-zinc-600'}`}>

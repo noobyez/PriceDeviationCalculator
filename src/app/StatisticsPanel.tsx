@@ -1,9 +1,23 @@
 // StatisticsPanel.tsx
 import React from "react";
+import { TooltipSimple } from "./components/help";
 
 interface StatisticsPanelProps {
   prices: number[];
 }
+
+// Descrizioni per tooltip
+const statDescriptions: Record<string, string> = {
+  "Media": "Prezzo medio pagato nel periodo selezionato",
+  "Mediana": "Valore centrale: metà dei prezzi sono sopra, metà sotto",
+  "Dev. Std": "Misura quanto i prezzi variano dalla media (più alto = più instabile)",
+  "Min": "Prezzo più basso pagato nel periodo",
+  "Max": "Prezzo più alto pagato nel periodo",
+  "Q1": "25% dei prezzi sono sotto questo valore",
+  "Q3": "75% dei prezzi sono sotto questo valore",
+  "IQR": "Range tra Q1 e Q3: indica la dispersione centrale dei prezzi",
+  "Varianza": "Misura statistica della variabilità dei prezzi",
+};
 
 function mean(arr: number[]) {
   return arr.reduce((a, b) => a + b, 0) / arr.length;
@@ -58,10 +72,12 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({ prices }) => {
   const iqrVal = iqr(prices);
 
   const StatItem = ({ label, value }: { label: string; value: string }) => (
-    <div className="flex flex-col">
-      <span className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">{label}</span>
-      <span className="text-base font-semibold text-zinc-800 dark:text-zinc-100" style={{ fontVariantNumeric: 'tabular-nums' }}>{value}</span>
-    </div>
+    <TooltipSimple content={statDescriptions[label] || label} position="top">
+      <div className="flex flex-col cursor-help">
+        <span className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">{label}</span>
+        <span className="text-base font-semibold text-zinc-800 dark:text-zinc-100" style={{ fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+      </div>
+    </TooltipSimple>
   );
 
   return (
