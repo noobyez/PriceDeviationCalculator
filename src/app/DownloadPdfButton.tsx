@@ -128,14 +128,64 @@ export default function DownloadPdfButton({
         doc.addPage();
         doc.setFontSize(14);
         doc.setTextColor(0);
-        doc.text("Grafico andamento prezzi", 14, 20);
+        doc.text("Grafico Andamento Prezzi", 14, 20);
         
         // Calcola dimensioni per adattare il grafico alla pagina
         const imgWidth = pageWidth - 28;
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
         doc.addImage(imgData, "PNG", 14, 28, imgWidth, imgHeight);
       } catch (err) {
-        console.error("Errore nella cattura del grafico:", err);
+        console.error("Errore nella cattura del grafico prezzi:", err);
+      }
+    }
+
+    // Cattura il grafico Previsione Probabilistica
+    const probabilisticChart = document.querySelector("#chart-probabilistic") as HTMLElement;
+    if (probabilisticChart) {
+      try {
+        const canvas = await html2canvas(probabilisticChart, {
+          backgroundColor: "#ffffff",
+          scale: 2,
+        });
+        const imgData = canvas.toDataURL("image/png");
+        
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.setTextColor(0);
+        doc.text("Previsione Probabilistica", 14, 20);
+        
+        const imgWidth = pageWidth - 28;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        const maxHeight = doc.internal.pageSize.getHeight() - 40;
+        const finalHeight = Math.min(imgHeight, maxHeight);
+        doc.addImage(imgData, "PNG", 14, 28, imgWidth, finalHeight);
+      } catch (err) {
+        console.error("Errore nella cattura del grafico probabilistico:", err);
+      }
+    }
+
+    // Cattura il grafico Storico vs Previsione
+    const overlayChart = document.querySelector("#chart-overlay") as HTMLElement;
+    if (overlayChart) {
+      try {
+        const canvas = await html2canvas(overlayChart, {
+          backgroundColor: "#ffffff",
+          scale: 2,
+        });
+        const imgData = canvas.toDataURL("image/png");
+        
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.setTextColor(0);
+        doc.text("Storico vs Previsione Futura", 14, 20);
+        
+        const imgWidth = pageWidth - 28;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        const maxHeight = doc.internal.pageSize.getHeight() - 40;
+        const finalHeight = Math.min(imgHeight, maxHeight);
+        doc.addImage(imgData, "PNG", 14, 28, imgWidth, finalHeight);
+      } catch (err) {
+        console.error("Errore nella cattura del grafico overlay:", err);
       }
     }
 

@@ -20,6 +20,7 @@ interface OverlayHistoricalVsForecastProps {
   regression: { a: number; b: number; predicted: number } | null;
   newPrice?: number | null;
   futurePoints?: number; // Numero di periodi futuri da prevedere (default: 5)
+  dates?: string[]; // Date ISO corrispondenti ai prezzi storici
 }
 
 /**
@@ -39,6 +40,7 @@ export default function OverlayHistoricalVsForecast({
   regression,
   newPrice = null,
   futurePoints = 5,
+  dates = [],
 }: OverlayHistoricalVsForecastProps) {
   
   // ============================================================
@@ -306,6 +308,21 @@ export default function OverlayHistoricalVsForecast({
         mode: "index" as const,
         intersect: false,
         callbacks: {
+          title: (tooltipItems: { dataIndex: number }[]) => {
+            const idx = tooltipItems[0]?.dataIndex;
+            if (idx === undefined) return '';
+            // Se è un punto storico, mostra la data
+            if (idx < n && dates[idx]) {
+              const d = new Date(dates[idx]);
+              const formattedDate = isNaN(d.getTime()) ? dates[idx] : d.toLocaleDateString('it-IT');
+              return `Periodo ${idx + 1} — ${formattedDate}`;
+            }
+            // Se è un punto futuro
+            if (idx >= n) {
+              return `Previsione T+${idx - n + 1}`;
+            }
+            return `Periodo ${idx + 1}`;
+          },
           label: (context: { dataset: { label?: string }; parsed: { y: number | null } }) => {
             const label = context.dataset.label || "";
             if (label.includes("lower")) return "";
@@ -359,6 +376,61 @@ export default function OverlayHistoricalVsForecast({
       intersect: false,
     },
   };
+
+  // ============================================================
+  // CALCOLO INTERPRETAZIONE AUTOMATICA
+  // ============================================================
+  const interpretation = useMemo(() => {
+    if (!regression || prices.length < 2) return null;
+
+    const { a, b } = regression;
+    const n = prices.length;
+    const firstPrice = prices[0];
+    const lastPrice = prices[n - 1];
+    const priceChange = lastPrice - firstPrice;
+    const priceChangePerc = ((lastPrice - firstPrice) / firstPrice) * 100;
+    
+    // Trend direction
+    const trendDirection = b > 0 ? 'crescente' : b < 0 ? 'decrescente' : 'stabile';
+    const trendStrength = Math.abs(b);
+    
+    // Variabilità (coefficiente di variazione)
+    const meanPrice = prices.reduce((sum, p) => sum + p, 0) / n;
+    const stdPrice = Math.sqrt(prices.reduce((sum, p) => sum + Math.pow(p - meanPrice, 2), 0) / n);
+    const cv = (stdPrice / meanPrice) * 100; // Coefficiente di variazione %
+    
+    // Previsione prossimo periodo
+    const nextPredicted = a + b * (n + 1);
+    const predictedChangePerc = ((nextPredicted - lastPrice) / lastPrice) * 100;
+    
+    // Valutazione nuovo prezzo se presente
+    let newPriceEval = null;
+    if (newPrice !== null) {
+      const diffFromPredicted = newPrice - nextPredicted;
+      const diffPerc = (diffFromPredicted / nextPredicted) * 100;
+      const sigmaDistance = Math.abs(diffFromPredicted) / (stdPrice || 1);
+      
+      if (sigmaDistance <= 1) {
+        newPriceEval = { status: 'OK', text: 'nella norma attesa', color: 'emerald' };
+      } else if (sigmaDistance <= 2) {
+        newPriceEval = { status: 'ATTENZIONE', text: 'leggermente fuori dalla norma', color: 'amber' };
+      } else {
+        newPriceEval = { status: 'ANOMALO', text: 'significativamente anomalo', color: 'red' };
+      }
+      newPriceEval = { ...newPriceEval, diffPerc };
+    }
+    
+    return {
+      trendDirection,
+      trendStrength,
+      priceChangePerc,
+      cv,
+      nextPredicted,
+      predictedChangePerc,
+      newPriceEval,
+      volatility: cv > 15 ? 'alta' : cv > 5 ? 'moderata' : 'bassa',
+    };
+  }, [prices, regression, newPrice]);
 
   // ============================================================
   // RENDERING
@@ -415,6 +487,54 @@ export default function OverlayHistoricalVsForecast({
         Dati storici: {n} periodi | 
         Previsione: {futurePoints} periodi futuri
       </p>
+
+      {/* Interpretazione automatica dei dati */}
+      {interpretation && (
+        <div className="mt-2 p-3 rounded-lg bg-gradient-to-r from-slate-50 to-zinc-50 dark:from-slate-900/50 dark:to-zinc-900/50 border border-zinc-200 dark:border-zinc-700">
+          <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 16v-4"/>
+              <path d="M12 8h.01"/>
+            </svg>
+            Interpretazione Analisi
+          </h4>
+          <ul className="text-xs text-zinc-600 dark:text-zinc-400 space-y-1.5">
+            <li>
+              <span className="font-medium">Trend storico:</span>{' '}
+              <span className={interpretation.trendDirection === 'crescente' ? 'text-red-600 dark:text-red-400' : interpretation.trendDirection === 'decrescente' ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-600'}>
+                {interpretation.trendDirection}
+              </span>
+              {' '}({interpretation.priceChangePerc >= 0 ? '+' : ''}{interpretation.priceChangePerc.toFixed(1)}% nel periodo analizzato)
+            </li>
+            <li>
+              <span className="font-medium">Volatilità prezzi:</span>{' '}
+              <span className={interpretation.volatility === 'alta' ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-600 dark:text-zinc-400'}>
+                {interpretation.volatility}
+              </span>
+              {' '}(CV: {interpretation.cv.toFixed(1)}%)
+            </li>
+            <li>
+              <span className="font-medium">Previsione prossimo periodo:</span>{' '}
+              <span className="font-semibold">{interpretation.nextPredicted.toFixed(2)}</span>
+              {' '}({interpretation.predictedChangePerc >= 0 ? '+' : ''}{interpretation.predictedChangePerc.toFixed(1)}% vs ultimo prezzo)
+            </li>
+            {interpretation.newPriceEval && (
+              <li className={`mt-2 p-2 rounded ${
+                interpretation.newPriceEval.color === 'emerald' 
+                  ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                  : interpretation.newPriceEval.color === 'amber'
+                  ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                  : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+              }`}>
+                <span className="font-semibold">{interpretation.newPriceEval.status}:</span>{' '}
+                Il nuovo prezzo ({newPrice?.toFixed(2)}) è {interpretation.newPriceEval.text}
+                {' '}({interpretation.newPriceEval.diffPerc >= 0 ? '+' : ''}{interpretation.newPriceEval.diffPerc.toFixed(1)}% rispetto alla previsione)
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

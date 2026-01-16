@@ -20,6 +20,7 @@ interface ProbabilisticPriceChartProps {
   regression: { a: number; b: number; predicted: number } | null;
   newPrice?: number | null;
   futurePoints?: number; // Numero di punti futuri da prevedere (default: 5)
+  dates?: string[]; // Date ISO corrispondenti ai prezzi storici
 }
 
 /**
@@ -39,6 +40,7 @@ export default function ProbabilisticPriceChart({
   regression,
   newPrice = null,
   futurePoints = 5,
+  dates = [],
 }: ProbabilisticPriceChartProps) {
   // Calcola gli errori storici e la deviazione standard
   const { sigma, predictions, labels } = useMemo(() => {

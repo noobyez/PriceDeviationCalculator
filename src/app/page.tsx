@@ -84,6 +84,9 @@ export default function Home() {
   // Toggle per rimuovere valori outlier identificati tramite Z-score (|Z| > 2)
   const [removeOutliers, setRemoveOutliers] = useState<boolean>(false);
 
+  // Indici esclusi manualmente dall'utente (basati su filteredByYear)
+  const [excludedIndices, setExcludedIndices] = useState<Set<number>>(new Set());
+
   const handleUpload = (uploadedPurchases: Purchase[]) => {
     try {
       // sanitize input: ensure price is finite number and date is valid
@@ -91,6 +94,8 @@ export default function Home() {
         .map((p) => ({ price: Number(p.price), date: String(p.date) }))
         .filter((p) => Number.isFinite(p.price) && !!p.date && !isNaN(new Date(p.date).getTime()));
       setPurchases(sane.length > 0 ? sane : null);
+      // Reset esclusioni manuali quando si carica un nuovo file
+      setExcludedIndices(new Set());
     } catch (err) {
       console.error('Error processing uploaded purchases', err);
       setPurchases(null);
@@ -170,6 +175,14 @@ export default function Home() {
     [filteredByYear]
   );
 
+  // fullDates: date corrispondenti ai fullPrices
+  const fullDates = useMemo(() =>
+    filteredByYear
+      .filter((p) => Number.isFinite(Number(p.price)))
+      .map((p) => p.date),
+    [filteredByYear]
+  );
+
   // intervalPricesRaw: dati originali dopo selezione intervallo (usati per visualizzazione e per calcolare Z-score)
   const intervalPricesRaw = useMemo(() => {
     if (interval === "all") return fullPrices;
@@ -179,10 +192,19 @@ export default function Home() {
     return fullPrices;
   }, [fullPrices, interval]);
 
+  // intervalDatesRaw: date corrispondenti a intervalPricesRaw
+  const intervalDatesRaw = useMemo(() => {
+    if (interval === "all") return fullDates;
+    if (typeof interval === "number") {
+      return fullDates.slice(-interval);
+    }
+    return fullDates;
+  }, [fullDates, interval]);
+
   // Calcola Z-score per individuare outlier e costruisce intervalPrices filtrati se removeOutliers=true
-  const { intervalPrices, outlierFlags } = useMemo(() => {
+  const { intervalPrices, intervalDates, outlierFlags } = useMemo(() => {
     if (!intervalPricesRaw || intervalPricesRaw.length === 0) {
-      return { intervalPrices: intervalPricesRaw, outlierFlags: [] };
+      return { intervalPrices: intervalPricesRaw, intervalDates: intervalDatesRaw, outlierFlags: [] };
     }
 
     const m = mean(intervalPricesRaw);
@@ -194,10 +216,38 @@ export default function Home() {
       return z > 2;
     });
 
-    const filtered = removeOutliers ? intervalPricesRaw.filter((_, i) => !flags[i]) : intervalPricesRaw;
+    // Filtra per outlier Z-score e per esclusioni manuali
+    const filtered: number[] = [];
+    const filteredDates: string[] = [];
+    intervalPricesRaw.forEach((price, i) => {
+      const isZScoreOutlier = removeOutliers && flags[i];
+      const isManuallyExcluded = excludedIndices.has(i);
+      if (!isZScoreOutlier && !isManuallyExcluded) {
+        filtered.push(price);
+        filteredDates.push(intervalDatesRaw[i] || '');
+      }
+    });
 
-    return { intervalPrices: filtered, outlierFlags: flags };
-  }, [intervalPricesRaw, removeOutliers]);
+    return { intervalPrices: filtered, intervalDates: filteredDates, outlierFlags: flags };
+  }, [intervalPricesRaw, intervalDatesRaw, removeOutliers, excludedIndices]);
+
+  // Handler per toggle esclusione manuale di un valore
+  const toggleExclude = (index: number) => {
+    setExcludedIndices((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+      }
+      return newSet;
+    });
+  };
+
+  // Reset esclusioni manuali
+  const resetExclusions = () => {
+    setExcludedIndices(new Set());
+  };
 
   // Calcola regressione per outlier e PDF (include R² confidence)
   const regression = useMemo(() => {
@@ -337,19 +387,48 @@ export default function Home() {
 
             {/* Storico prezzi e toggle Z-score */}
             <div className="w-full p-4 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
-                Storico prezzi caricato
-              </h3>
-              <div className="flex flex-wrap gap-2 text-sm mb-3 max-h-32 overflow-y-auto">
-                {intervalPricesRaw.map((price, i) => (
-                  <span
-                    key={i}
-                    className={`px-2.5 py-1 rounded-full text-sm font-medium ${outlierFlags[i] ? 'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100 ring-1 ring-red-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100'}`}
-                    style={{ fontVariantNumeric: 'tabular-nums' }}
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  Storico prezzi caricato
+                </h3>
+                {excludedIndices.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={resetExclusions}
+                    className="text-xs text-blue-500 hover:text-blue-600 hover:underline"
                   >
-                    {price.toFixed(2)}
-                  </span>
-                ))}
+                    Ripristina tutti ({excludedIndices.size} esclusi)
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-2">
+                Clicca su un valore per escluderlo/includerlo dall&apos;analisi
+              </p>
+              <div className="flex flex-wrap gap-2 text-sm mb-3 max-h-32 overflow-y-auto">
+                {intervalPricesRaw.map((price, i) => {
+                  const isOutlier = outlierFlags[i];
+                  const isExcluded = excludedIndices.has(i);
+                  const dateStr = intervalDatesRaw[i];
+                  const formattedDate = dateStr ? new Date(dateStr).toLocaleDateString('it-IT') : '';
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => toggleExclude(i)}
+                      title={`${formattedDate}${isExcluded ? ' (escluso)' : isOutlier ? ' (outlier Z>2)' : ''} - Clicca per ${isExcluded ? 'includere' : 'escludere'}`}
+                      className={`px-2.5 py-1 rounded-full text-sm font-medium transition-all cursor-pointer ${
+                        isExcluded 
+                          ? 'bg-zinc-300 dark:bg-zinc-600 text-zinc-500 dark:text-zinc-400 line-through opacity-60' 
+                          : isOutlier 
+                            ? 'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100 ring-1 ring-red-400' 
+                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-blue-100 dark:hover:bg-blue-900'
+                      }`}
+                      style={{ fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      {price.toFixed(2)}
+                    </button>
+                  );
+                })}
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -437,12 +516,13 @@ export default function Home() {
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
                   Grafico Prezzi
                 </h3>
-                <div className="w-full h-[480px]">
+                <div className="w-full h-[480px] floating-chart" id="chart-prices">
                   <PriceChart
                     prices={intervalPrices}
                     regression={regression}
                     newPrice={newPrice}
                     isNewPriceOutlier={isNewPriceOutlier}
+                    dates={intervalDates}
                   />
                 </div>
               </div>
@@ -466,12 +546,15 @@ export default function Home() {
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
                   Previsione Probabilistica
                 </h3>
-                <ProbabilisticPriceChart
-                  prices={intervalPrices}
-                  regression={regression}
-                  newPrice={newPrice}
-                  futurePoints={5}
-                />
+                <div id="chart-probabilistic">
+                  <ProbabilisticPriceChart
+                    prices={intervalPrices}
+                    regression={regression}
+                    newPrice={newPrice}
+                    futurePoints={5}
+                    dates={intervalDates}
+                  />
+                </div>
               </div>
             )}
 
@@ -481,12 +564,15 @@ export default function Home() {
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">
                   Storico vs Previsione
                 </h3>
-                <OverlayHistoricalVsForecast
-                  prices={intervalPrices}
-                  regression={regression}
-                  newPrice={newPrice}
-                  futurePoints={5}
-                />
+                <div id="chart-overlay">
+                  <OverlayHistoricalVsForecast
+                    prices={intervalPrices}
+                    regression={regression}
+                    newPrice={newPrice}
+                    futurePoints={5}
+                    dates={intervalDates}
+                  />
+                </div>
               </div>
             )}
           </section>
