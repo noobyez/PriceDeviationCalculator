@@ -33,11 +33,11 @@ export default function HeroSection({ onScrollToUpload }: HeroSectionProps) {
 
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center">
-          {/* Brand name with accent */}
+          {/* Tagline above title */}
           <div className="mb-6">
-            <span className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 tracking-wider uppercase">
+            <span className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 tracking-wider">
               <span className="w-8 h-px bg-blue-400/50" />
-              ProcuraSense
+              Turn price uncertainty into strategic insight
               <span className="w-8 h-px bg-blue-400/50" />
             </span>
           </div>
