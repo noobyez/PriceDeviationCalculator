@@ -25,19 +25,15 @@ interface PriceChartProps {
 }
 
 export default function PriceChart({ prices, regression, newPrice, isNewPriceOutlier = false, dates = [] }: PriceChartProps) {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const n = prices.length;
-  const dateLocale = language === 'it' ? 'it-IT' : 'en-US';
   
   // Calcola dati derivati
   const chartData = useMemo(() => {
-    // Labels con date formattate se disponibili
+    // Labels: usa le date direttamente (già in formato DD-MM-YY)
     const labels = Array.from({ length: n + 1 }, (_, i) => {
       if (i < n && dates[i]) {
-        const d = new Date(dates[i]);
-        if (!isNaN(d.getTime())) {
-          return d.toLocaleDateString(dateLocale, { month: 'short', year: '2-digit' });
-        }
+        return dates[i]; // Data già nel formato corretto
       }
       return i < n ? `${i + 1}` : t("charts.forecast");
     });
@@ -244,14 +240,7 @@ export default function PriceChart({ prices, regression, newPrice, isNewPriceOut
             const idx = tooltipItems[0]?.dataIndex;
             if (idx === undefined) return '';
             if (idx < n && dates[idx]) {
-              const d = new Date(dates[idx]);
-              if (!isNaN(d.getTime())) {
-                return d.toLocaleDateString(dateLocale, { 
-                  day: 'numeric',
-                  month: 'long', 
-                  year: 'numeric' 
-                });
-              }
+              return dates[idx]; // Data già nel formato DD-MM-YY
             }
             return idx < n ? `${t("charts.period")} ${idx + 1}` : t("charts.forecast");
           },

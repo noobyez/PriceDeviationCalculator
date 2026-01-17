@@ -47,61 +47,146 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
     const sheet = workbook.Sheets[sheetName];
     const data: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
 
-    const purchases: Purchase[] = [];
-    for (const row of data) {
-      // Column 0: Price
-      const price = typeof row[0] === "number" ? row[0] : parseFloat(String(row[0]).replace(",", "."));
+    console.log('=== EXCEL PARSER DEBUG ===');
+    console.log('Total rows in Excel:', data.length);
+    console.log('First 5 rows:', data.slice(0, 5));
 
-      // Column 1: Date - Normalize from different possible cell types (string, number, Date)
+    if (data.length === 0) return [];
+
+    // Detect column indices from header row or use defaults
+    // Supported column names (case-insensitive):
+    // - Price: price, prezzo, costo, cost, amount, importo
+    // - Date: date, data, datetime
+    // - Quantity: quantity, qty, quantità, quantita, qta
+    // - Item: item, pn, part_number, partnumber, product, prodotto, articolo, codice
+    
+    const firstRow = data[0];
+    let priceCol = -1;
+    let dateCol = -1;
+    let quantityCol = -1;
+    let itemCol = -1;
+    let hasHeader = false;
+
+    // Check if first row is a header
+    if (firstRow && Array.isArray(firstRow)) {
+      const headerCheck = firstRow.map(cell => String(cell || '').toLowerCase().trim());
+      
+      headerCheck.forEach((header, idx) => {
+        if (priceCol === -1 && /^(price|prezzo|costo|cost|amount|importo|unit_price|unitprice)$/.test(header)) {
+          priceCol = idx;
+          hasHeader = true;
+        }
+        if (dateCol === -1 && /^(date|data|datetime|purchase_date|purchasedate|order_date)$/.test(header)) {
+          dateCol = idx;
+          hasHeader = true;
+        }
+        if (quantityCol === -1 && /^(quantity|qty|quantità|quantita|qta|amount|units)$/.test(header)) {
+          quantityCol = idx;
+          hasHeader = true;
+        }
+        if (itemCol === -1 && /^(item|pn|part_number|partnumber|product|prodotto|articolo|codice|sku|material|materiale)$/.test(header)) {
+          itemCol = idx;
+          hasHeader = true;
+        }
+      });
+    }
+
+    // If no header detected, use default column order: item, quantity, price, purchase_date
+    if (!hasHeader) {
+      itemCol = 0;
+      quantityCol = 1;
+      priceCol = 2;
+      dateCol = 3;
+    }
+
+    // Ensure we have at least price and date columns
+    if (priceCol === -1) priceCol = 2;
+    if (dateCol === -1) dateCol = 3;
+
+    console.log('Column mapping:', { itemCol, quantityCol, priceCol, dateCol, hasHeader });
+
+    const purchases: Purchase[] = [];
+    const startRow = hasHeader ? 1 : 0;
+
+    for (let i = startRow; i < data.length; i++) {
+      const row = data[i];
+      if (!row || !Array.isArray(row)) continue;
+
+      // Parse price - preserve full decimal precision
+      const priceRaw = row[priceCol];
+      const price = typeof priceRaw === "number" ? priceRaw : parseFloat(String(priceRaw || '').replace(",", "."));
+
+      // Parse date - salva direttamente in formato DD-MM-YY
       let dateValue: string | null = null;
-      const cell = row[1];
+      let isoDate: string | null = null; // Per validazione e ordinamento
+      const cell = row[dateCol];
 
       if (typeof cell === "string") {
         const s = cell.trim();
         const standardized = s.replace(/\//g, "-");
+        // Formato DD-MM-YY o DD-MM-YYYY
         const m = standardized.match(/^(\d{1,2})-(\d{1,2})-(\d{2}|\d{4})$/);
         if (m) {
           const day = m[1].padStart(2, "0");
           const month = m[2].padStart(2, "0");
           let year = m[3];
-          if (year.length === 2) year = `20${year}`;
-          const iso = `${year}-${month}-${day}`; // YYYY-MM-DD
-          const d = new Date(iso);
-          if (!isNaN(d.getTime())) dateValue = d.toISOString();
+          if (year.length === 4) year = year.slice(-2);
+          dateValue = `${day}-${month}-${year}`;
+          isoDate = `20${year}-${month}-${day}`;
         } else {
-          const d = new Date(standardized);
-          if (!isNaN(d.getTime())) dateValue = d.toISOString();
+          // Formato ISO YYYY-MM-DD
+          const isoMatch = standardized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+          if (isoMatch) {
+            const year = isoMatch[1];
+            const month = isoMatch[2].padStart(2, "0");
+            const day = isoMatch[3].padStart(2, "0");
+            dateValue = `${day}-${month}-${year.slice(-2)}`;
+            isoDate = `${year}-${month}-${day}`;
+          }
         }
       } else if (cell instanceof Date) {
-        dateValue = cell.toISOString();
+        const year = cell.getFullYear();
+        const month = String(cell.getMonth() + 1).padStart(2, "0");
+        const day = String(cell.getDate()).padStart(2, "0");
+        dateValue = `${day}-${month}-${String(year).slice(-2)}`;
+        isoDate = `${year}-${month}-${day}`;
       } else if (typeof cell === "number") {
-        // Excel stores dates as serial numbers; use XLSX utility to parse
+        // Excel stores dates as serial numbers
         try {
           const dc = (XLSX as any).SSF.parse_date_code(cell);
           if (dc && dc.y) {
-            const d = new Date(dc.y, dc.m - 1, dc.d);
-            dateValue = d.toISOString();
+            const year = dc.y;
+            const month = String(dc.m).padStart(2, "0");
+            const day = String(dc.d).padStart(2, "0");
+            dateValue = `${day}-${month}-${String(year).slice(-2)}`;
+            isoDate = `${year}-${month}-${day}`;
           }
         } catch {
-          // fallback: attempt JS conversion (most spreadsheets use 25569 offset)
           const jsDate = new Date(Math.round((cell - 25569) * 86400 * 1000));
-          if (!isNaN(jsDate.getTime())) dateValue = jsDate.toISOString();
+          if (!isNaN(jsDate.getTime())) {
+            const year = jsDate.getUTCFullYear();
+            const month = String(jsDate.getUTCMonth() + 1).padStart(2, "0");
+            const day = String(jsDate.getUTCDate()).padStart(2, "0");
+            dateValue = `${day}-${month}-${String(year).slice(-2)}`;
+            isoDate = `${year}-${month}-${day}`;
+          }
         }
       }
 
-      // Column 2 (optional): Quantity for advanced regression
+      // Parse quantity (optional)
       let quantityValue: number | undefined = undefined;
-      if (row[2] !== undefined && row[2] !== null && row[2] !== "") {
-        const qtyRaw = typeof row[2] === "number" ? row[2] : parseFloat(String(row[2]).replace(",", "."));
+      if (quantityCol >= 0 && row[quantityCol] !== undefined && row[quantityCol] !== null && row[quantityCol] !== "") {
+        const qtyCell = row[quantityCol];
+        const qtyRaw = typeof qtyCell === "number" ? qtyCell : parseFloat(String(qtyCell).replace(",", "."));
         if (Number.isFinite(qtyRaw) && qtyRaw >= 0) {
           quantityValue = qtyRaw;
         }
       }
 
-      // Column 3 (optional): Item name for multi-item datasets
+      // Parse item/PN (optional)
       let itemValue: string | undefined = undefined;
-      if (row[3] !== undefined && row[3] !== null && row[3] !== "") {
-        const itemStr = String(row[3]).trim();
+      if (itemCol >= 0 && row[itemCol] !== undefined && row[itemCol] !== null && row[itemCol] !== "") {
+        const itemStr = String(row[itemCol]).trim();
         if (itemStr.length > 0) {
           itemValue = itemStr;
         }
@@ -109,56 +194,138 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
 
       if (!isNaN(price) && dateValue) {
         purchases.push({ price, date: dateValue, quantity: quantityValue, item: itemValue });
+      } else {
+        console.log('Row skipped - price:', price, 'dateValue:', dateValue, 'raw row:', row);
       }
     }
+    console.log('Total parsed purchases:', purchases.length);
+    console.log('=== END EXCEL PARSER DEBUG ===');
     return purchases;
   };
 
   const parseTextFile = (text: string): Purchase[] => {
+    console.log('=== TEXT PARSER DEBUG ===');
+    
+    // Parse date string preserving original date without timezone conversion
     const parseDateString = (s: string | undefined | null): string | null => {
       if (!s) return null;
       const standardized = s.trim().replace(/\//g, "-");
+      
+      // Formato DD-MM-YYYY o DD-MM-YY -> restituisce DD-MM-YY
       const m = standardized.match(/^(\d{1,2})-(\d{1,2})-(\d{2}|\d{4})$/);
       if (m) {
         const day = m[1].padStart(2, "0");
         const month = m[2].padStart(2, "0");
         let year = m[3];
-        if (year.length === 2) year = `20${year}`;
-        const iso = `${year}-${month}-${day}`; // YYYY-MM-DD
-        const d = new Date(iso);
-        if (!isNaN(d.getTime())) return d.toISOString();
+        if (year.length === 4) year = year.slice(-2);
+        return `${day}-${month}-${year}`;
       }
-      const d2 = new Date(standardized);
-      if (!isNaN(d2.getTime())) return d2.toISOString();
+      
+      // Formato YYYY-MM-DD -> restituisce DD-MM-YY
+      const isoMatch = standardized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if (isoMatch) {
+        const year = isoMatch[1];
+        const month = isoMatch[2].padStart(2, "0");
+        const day = isoMatch[3].padStart(2, "0");
+        return `${day}-${month}-${year.slice(-2)}`;
+      }
+      
       return null;
     };
 
-    return text
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-      .map((line): Purchase | null => {
-        const parts = line.split(/[,;\t]+/).map((v) => v.trim());
-        const [priceRaw, dateRaw, quantityRaw, itemRaw] = parts;
+    const lines = text.split(/\r?\n/).map((line) => line.trim()).filter((line) => line.length > 0);
+    console.log('Total lines in file:', lines.length);
+    console.log('First 5 lines:', lines.slice(0, 5));
+    
+    if (lines.length === 0) return [];
+
+    // Detect separator and split first line for header check
+    // Prefer semicolon (European CSV) over comma (may be used for decimals)
+    let firstLineParts: string[];
+    const firstLine = lines[0];
+    if (firstLine.includes(';')) {
+      firstLineParts = firstLine.split(';').map((v) => v.trim().toLowerCase());
+    } else if (firstLine.includes('\t')) {
+      firstLineParts = firstLine.split('\t').map((v) => v.trim().toLowerCase());
+    } else {
+      firstLineParts = firstLine.split(',').map((v) => v.trim().toLowerCase());
+    }
+    
+    let priceCol = -1;
+    let dateCol = -1;
+    let quantityCol = -1;
+    let itemCol = -1;
+    let hasHeader = false;
+
+    firstLineParts.forEach((header, idx) => {
+      if (priceCol === -1 && /^(price|prezzo|costo|cost|amount|importo|unit_price|unitprice)$/.test(header)) {
+        priceCol = idx;
+        hasHeader = true;
+      }
+      if (dateCol === -1 && /^(date|data|datetime|purchase_date|purchasedate|order_date)$/.test(header)) {
+        dateCol = idx;
+        hasHeader = true;
+      }
+      if (quantityCol === -1 && /^(quantity|qty|quantità|quantita|qta|units)$/.test(header)) {
+        quantityCol = idx;
+        hasHeader = true;
+      }
+      if (itemCol === -1 && /^(item|pn|part_number|partnumber|product|prodotto|articolo|codice|sku|material|materiale)$/.test(header)) {
+        itemCol = idx;
+        hasHeader = true;
+      }
+    });
+
+    // Default column order if no header: item, quantity, price, purchase_date
+    if (!hasHeader) {
+      itemCol = 0;
+      quantityCol = 1;
+      priceCol = 2;
+      dateCol = 3;
+    }
+
+    if (priceCol === -1) priceCol = 2;
+    if (dateCol === -1) dateCol = 3;
+
+    console.log('CSV Column mapping:', { itemCol, quantityCol, priceCol, dateCol, hasHeader });
+
+    const startIdx = hasHeader ? 1 : 0;
+
+    const results = lines.slice(startIdx)
+      .map((line, idx): Purchase | null => {
+        // Detect the actual separator (semicolon or tab - NOT comma since it's used for decimals)
+        // Try semicolon first (common in European CSV files)
+        let parts: string[];
+        if (line.includes(';')) {
+          parts = line.split(';').map((v) => v.trim());
+        } else if (line.includes('\t')) {
+          parts = line.split('\t').map((v) => v.trim());
+        } else {
+          // Fallback to comma, but this may conflict with decimal separator
+          parts = line.split(',').map((v) => v.trim());
+        }
         
-        // Parse price (column 0)
-        const parsedPrice = parseFloat(String(priceRaw).replace(",", "."));
-        // Parse date (column 1)
+        // Parse price - replace comma with dot for decimal
+        const priceRaw = parts[priceCol];
+        const parsedPrice = parseFloat(String(priceRaw || '').replace(",", "."));
+        
+        // Parse date
+        const dateRaw = parts[dateCol];
         const parsedDate = parseDateString(dateRaw);
         
-        // Parse optional quantity (column 2)
+        // Parse optional quantity
         let parsedQuantity: number | undefined = undefined;
-        if (quantityRaw !== undefined && quantityRaw !== "") {
-          const qtyNum = parseFloat(String(quantityRaw).replace(",", "."));
+        if (quantityCol >= 0 && parts[quantityCol] !== undefined && parts[quantityCol] !== "") {
+          const qtyNum = parseFloat(String(parts[quantityCol]).replace(",", "."));
           if (Number.isFinite(qtyNum) && qtyNum >= 0) {
             parsedQuantity = qtyNum;
           }
         }
         
-        // Parse optional item name (column 3)
+        // Parse optional item/PN
         let parsedItem: string | undefined = undefined;
-        if (itemRaw !== undefined && itemRaw !== "") {
-          const itemStr = String(itemRaw).trim();
+        if (itemCol >= 0 && parts[itemCol] !== undefined && parts[itemCol] !== "") {
+          const itemStr = String(parts[itemCol]).trim();
           if (itemStr.length > 0) {
             parsedItem = itemStr;
           }
@@ -174,9 +341,14 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
           }
           return purchase;
         }
+        console.log(`Row ${idx} skipped - price: ${parsedPrice}, date: ${parsedDate}, parts:`, parts);
         return null;
       })
       .filter((item): item is Purchase => item !== null);
+    
+    console.log('Total parsed purchases:', results.length);
+    console.log('=== END TEXT PARSER DEBUG ===');
+    return results;
   };
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {

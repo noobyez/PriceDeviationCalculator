@@ -44,7 +44,16 @@ export default function OverlayHistoricalVsForecast({
   dates = [],
 }: OverlayHistoricalVsForecastProps) {
   const { t, language } = useLanguage();
-  const dateLocale = language === 'it' ? 'it-IT' : 'en-US';
+  
+  // Helper to format date in DD-MM-YY format
+  const formatDateLabel = (dateStr: string): string => {
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const [, year, month, day] = match;
+      return `${day}-${month}-${year.slice(-2)}`;
+    }
+    return dateStr;
+  };
   
   // ============================================================
   // CALCOLI STATISTICI
@@ -83,8 +92,13 @@ export default function OverlayHistoricalVsForecast({
     const band3SigmaUpper = futurePredictions.map((p) => p + 3 * sigma);
     const band3SigmaLower = futurePredictions.map((p) => p - 3 * sigma);
 
-    // 6. Genera etichette per l'asse X
-    const historicalLabels = prices.map((_, i) => `${i + 1}`);
+    // 6. Genera etichette per l'asse X (usa date se disponibili, formato DD-MM-YY)
+    const historicalLabels = prices.map((_, i) => {
+      if (dates[i]) {
+        return formatDateLabel(dates[i]);
+      }
+      return `${i + 1}`;
+    });
     const futureLabels = Array.from({ length: futurePoints }, (_, i) => `T+${i + 1}`);
     const allLabels = [...historicalLabels, ...futureLabels];
 
@@ -103,7 +117,7 @@ export default function OverlayHistoricalVsForecast({
       historicalLabels,
       futureLabels,
     };
-  }, [prices, regression, futurePoints]);
+  }, [prices, regression, futurePoints, dates, formatDateLabel]);
 
   // Se non ci sono dati sufficienti, non renderizzare
   if (!computedData || !regression) {
@@ -314,11 +328,9 @@ export default function OverlayHistoricalVsForecast({
           title: (tooltipItems: { dataIndex: number }[]) => {
             const idx = tooltipItems[0]?.dataIndex;
             if (idx === undefined) return '';
-            // Se è un punto storico, mostra la data
+            // Se è un punto storico, mostra la data in formato DD-MM-YY
             if (idx < n && dates[idx]) {
-              const d = new Date(dates[idx]);
-              const formattedDate = isNaN(d.getTime()) ? dates[idx] : d.toLocaleDateString('it-IT');
-              return `Periodo ${idx + 1} — ${formattedDate}`;
+              return formatDateLabel(dates[idx]);
             }
             // Se è un punto futuro
             if (idx >= n) {

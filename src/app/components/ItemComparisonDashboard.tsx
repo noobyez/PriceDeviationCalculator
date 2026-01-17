@@ -1,6 +1,9 @@
 /**
  * ItemComparisonDashboard - Dashboard for comparing two items side by side
  * Shows overlaid price charts and correlation analysis
+ * 
+ * IMPORTANT: This component uses getItemTimeSeries as the central function
+ * for filtering data by item. All analysis is based on item-filtered data.
  */
 "use client";
 import React, { useMemo, useState } from "react";
@@ -17,11 +20,12 @@ import {
   Filler,
 } from "chart.js";
 import { useLanguage } from "@/i18n";
-import { GroupedPurchaseData } from "@/models/Purchase";
+import { Purchase } from "@/models/Purchase";
 import {
-  alignItemsByDate,
-  calculateItemCorrelation,
-  calculateRollingCorrelation,
+  alignItemsTimeSeries,
+  calculateItemsCorrelation,
+  calculateItemsRollingCorrelation,
+  getAllItemIds,
   ItemCorrelationResult
 } from "@/utils/multiItemUtils";
 
@@ -38,46 +42,57 @@ ChartJS.register(
 );
 
 interface ItemComparisonDashboardProps {
-  groupedData: GroupedPurchaseData;
+  purchases: Purchase[];
 }
 
 export default function ItemComparisonDashboard({
-  groupedData
+  purchases
 }: ItemComparisonDashboardProps) {
   const { t } = useLanguage();
-  const { items } = groupedData;
+  
+  // Helper to format date in DD-MM-YY format without timezone shift
+  const formatDateLabel = (dateStr: string): string => {
+    // Date comes as YYYY-MM-DD from alignItemsTimeSeries
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const [, year, month, day] = match;
+      // Return in DD-MM-YY format
+      return `${day}-${month}-${year.slice(-2)}`;
+    }
+    return dateStr;
+  };
+  
+  // Get all unique item IDs from the dataset
+  const items = useMemo(() => getAllItemIds(purchases), [purchases]);
 
   // State for selected items
   const [itemA, setItemA] = useState<string>(items[0] || "");
   const [itemB, setItemB] = useState<string>(items[1] || items[0] || "");
 
-  // Aligned data for comparison
+  // Aligned data for comparison - uses getItemTimeSeries internally
   const alignedData = useMemo(() => {
     if (!itemA || !itemB || itemA === itemB) return null;
-    return alignItemsByDate(groupedData, itemA, itemB);
-  }, [groupedData, itemA, itemB]);
+    return alignItemsTimeSeries(purchases, itemA, itemB);
+  }, [purchases, itemA, itemB]);
 
-  // Correlation calculation
+  // Correlation calculation - uses getItemTimeSeries internally
   const correlation = useMemo((): ItemCorrelationResult | null => {
     if (!itemA || !itemB || itemA === itemB) return null;
-    return calculateItemCorrelation(groupedData, itemA, itemB);
-  }, [groupedData, itemA, itemB]);
+    return calculateItemsCorrelation(purchases, itemA, itemB);
+  }, [purchases, itemA, itemB]);
 
-  // Rolling correlation
+  // Rolling correlation - uses getItemTimeSeries internally
   const rollingCorr = useMemo(() => {
     if (!itemA || !itemB || itemA === itemB) return [];
-    return calculateRollingCorrelation(groupedData, itemA, itemB, 5);
-  }, [groupedData, itemA, itemB]);
+    return calculateItemsRollingCorrelation(purchases, itemA, itemB, 5);
+  }, [purchases, itemA, itemB]);
 
   // Chart data for price comparison
   const priceChartData = useMemo(() => {
     if (!alignedData || alignedData.commonDates.length === 0) return null;
 
     return {
-      labels: alignedData.commonDates.map(d => {
-        const date = new Date(d);
-        return date.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
-      }),
+      labels: alignedData.commonDates.map(d => formatDateLabel(d)),
       datasets: [
         {
           label: itemA,
@@ -110,10 +125,7 @@ export default function ItemComparisonDashboard({
     if (rollingCorr.length === 0) return null;
 
     return {
-      labels: rollingCorr.map(r => {
-        const date = new Date(r.date);
-        return date.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
-      }),
+      labels: rollingCorr.map(r => formatDateLabel(r.date)),
       datasets: [
         {
           label: t("itemComparison.rollingCorrelation") || "Rolling Correlation",

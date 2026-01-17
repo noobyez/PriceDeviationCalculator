@@ -152,8 +152,17 @@ export default function Home() {
     return dateStr;
   };
 
+  // Helper per validare se una stringa data è valida (supporta DD-MM-YY/DD-MM-YYYY)
+  const isValidDateString = (dateStr: string): boolean => {
+    if (!dateStr) return false;
+    return parseDateString(dateStr) !== null;
+  };
+
   const handleUpload = (uploadedPurchases: Purchase[]) => {
     try {
+      console.log('=== UPLOAD DEBUG ===');
+      console.log('Total uploaded purchases:', uploadedPurchases.length);
+      
       // sanitize input: ensure price is finite number and date is valid
       // preserve quantity and item if present
       const sane: Purchase[] = uploadedPurchases
@@ -172,7 +181,17 @@ export default function Home() {
           }
           return purchase;
         })
-        .filter((p) => Number.isFinite(p.price) && !!p.date && !isNaN(new Date(p.date).getTime()));
+        .filter((p) => {
+          const priceOk = Number.isFinite(p.price);
+          const dateOk = isValidDateString(p.date);
+          if (!priceOk || !dateOk) {
+            console.log('Rejected purchase:', p, 'priceOk:', priceOk, 'dateOk:', dateOk);
+          }
+          return priceOk && dateOk;
+        });
+      
+      console.log('Valid purchases after filter:', sane.length);
+      console.log('=== END UPLOAD DEBUG ===');
       
       setPurchases(sane.length > 0 ? sane : null);
       // Reset esclusioni manuali quando si carica un nuovo file
@@ -245,7 +264,14 @@ export default function Home() {
   // Raggruppa tutti i purchases per item (memoizzato)
   const groupedData: GroupedPurchaseData = useMemo(() => {
     if (!purchases) return { items: [], byItem: {}, hasMultipleItems: false };
-    return groupPurchasesByItem(purchases);
+    const grouped = groupPurchasesByItem(purchases);
+    console.log('=== GROUPED DATA ===');
+    console.log('Total purchases:', purchases.length);
+    console.log('Items:', grouped.items);
+    grouped.items.forEach(item => {
+      console.log(`  ${item}: ${grouped.byItem[item]?.length} records`);
+    });
+    return grouped;
   }, [purchases]);
 
   // Purchases filtrati per l'item selezionato
@@ -262,10 +288,15 @@ export default function Home() {
     const fromParsed = parseDateString(appliedFromDate);
     const toParsed = parseDateString(appliedToDate);
 
+    // Se non ci sono filtri applicati, ritorna tutti i purchases
+    if (!fromParsed && !toParsed) {
+      return purchasesForSelectedItem;
+    }
+
     return purchasesForSelectedItem.filter((purchase) => {
       try {
-        const d = new Date(purchase.date);
-        if (isNaN(d.getTime())) return false;
+        const d = parseDateString(purchase.date);
+        if (!d) return false;
         
         const afterFrom = !fromParsed || d >= fromParsed;
         const beforeTo = !toParsed || d <= toParsed;
@@ -732,7 +763,7 @@ export default function Home() {
 
       case 'itemComparison':
         return groupedData.hasMultipleItems ? (
-          <ItemComparisonDashboard groupedData={groupedData} />
+          <ItemComparisonDashboard purchases={purchases || []} />
         ) : (
           <div className="p-4 text-center bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
