@@ -11,8 +11,15 @@ import ProductCorrelationPanel from "./ProductCorrelationPanel";
 import { ModularLayout, PanelConfig } from "./components/modular";
 import { HelpPanel, HelpToggle } from "./components/help";
 import { LanguageSelector } from "./components/i18n";
+import { 
+  HeroSection, 
+  CoreValueSection, 
+  UploadSection, 
+  HowItWorksSection, 
+  Footer 
+} from "./components/landing";
 import { useLanguage } from "@/i18n";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { Purchase } from "../models/Purchase";
 
 // Funzioni statistiche
@@ -82,6 +89,9 @@ export default function Home() {
   const [newPrice, setNewPrice] = useState<number | null>(null);
   const [deviation, setDeviation] = useState<{ abs: number; perc: number } | null>(null);
   
+  // Ref per scroll to upload section
+  const uploadSectionRef = useRef<HTMLDivElement>(null);
+  
   // Date filter (formato dd/mm/yyyy)
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
@@ -96,6 +106,11 @@ export default function Home() {
 
   // Stato per zoom grafici
   const [zoomedChart, setZoomedChart] = useState<string | null>(null);
+  
+  // Handler per scroll alla sezione upload
+  const scrollToUpload = useCallback(() => {
+    uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
   // Helper per parsare data nel formato dd/mm/yyyy
   const parseDateString = (dateStr: string): Date | null => {
@@ -632,8 +647,8 @@ export default function Home() {
   ]);
 
   return (
-    <div className="w-full min-h-screen bg-[var(--background)] p-6 lg:p-8">
-      {/* Language Selector e Help Toggle in alto a destra */}
+    <div className="w-full min-h-screen bg-[var(--background)]">
+      {/* Language Selector e Help Toggle in alto a destra - sempre visibili */}
       <div className="fixed top-4 right-4 z-40 flex items-center gap-3">
         <LanguageSelector />
         <HelpToggle />
@@ -642,34 +657,53 @@ export default function Home() {
       {/* Help Panel (pulsante in basso a sinistra) */}
       <HelpPanel />
 
-      <header className="w-full text-center mb-6">
-        <h1 className="text-2xl lg:text-3xl font-bold text-zinc-800 dark:text-zinc-100">
-          {t("app.title")}
-        </h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-          {t("app.subtitle")}
-        </p>
-      </header>
-
-      {/* Landing page centrata quando non ci sono dati */}
+      {/* ================================================
+          LANDING PAGE - Mostrata quando non ci sono dati
+          ================================================ */}
       {!purchases && (
-        <div className="w-full max-w-md mx-auto mt-12">
-          <div className="w-full p-6 bg-[var(--surface)] rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+        <>
+          {/* Hero Section */}
+          <HeroSection onScrollToUpload={scrollToUpload} />
+
+          {/* Core Value Section - "Why Sense" */}
+          <CoreValueSection />
+
+          {/* Upload Section - Integra il componente esistente */}
+          <UploadSection ref={uploadSectionRef}>
             <PriceHistoryUpload onUpload={handleUpload} />
-          </div>
-        </div>
+          </UploadSection>
+
+          {/* How It Works Section */}
+          <HowItWorksSection />
+
+          {/* Footer */}
+          <Footer />
+        </>
       )}
 
-      {/* Layout modulare quando ci sono dati */}
+      {/* ================================================
+          APP DASHBOARD - Mostrata quando ci sono dati
+          ================================================ */}
       {purchases && (
-        <main className="w-full">
-          <ModularLayout
-            renderPanel={renderPanelContent}
-            onZoomPanel={handleZoomPanel}
-            zoomablePanels={['priceChart', 'probabilistic', 'overlay']}
-            hasPurchases={!!purchases}
-          />
-        </main>
+        <div className="p-6 lg:p-8">
+          <header className="w-full text-center mb-6">
+            <h1 className="text-2xl lg:text-3xl font-bold text-zinc-800 dark:text-zinc-100">
+              {t("app.title")}
+            </h1>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {t("app.subtitle")}
+            </p>
+          </header>
+
+          <main className="w-full">
+            <ModularLayout
+              renderPanel={renderPanelContent}
+              onZoomPanel={handleZoomPanel}
+              zoomablePanels={['priceChart', 'probabilistic', 'overlay']}
+              hasPurchases={!!purchases}
+            />
+          </main>
+        </div>
       )}
 
       {/* Modal Zoom Grafico */}

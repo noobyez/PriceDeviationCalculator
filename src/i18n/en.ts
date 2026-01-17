@@ -454,6 +454,62 @@ export const en = {
     networkError: "Network error",
     tryAgain: "Try again",
   },
+
+  // ============================================
+  // LANDING - Landing page
+  // ============================================
+  landing: {
+    hero: {
+      subtitle: "Your predictive companion for smarter procurement decisions",
+      description: "Analyze historical prices, forecast future scenarios and quantify risk with probabilistic models tailored for procurement.",
+      cta: "Upload your data to start",
+      trust1: "Enterprise-grade security",
+      trust2: "Instant analysis",
+      trust3: "Data never leaves your browser",
+    },
+    features: {
+      title: "Why Sense",
+      subtitle: "Built for procurement professionals who need data-driven insights, not just data.",
+      forecasting: {
+        title: "Price Forecasting",
+        description: "Linear regression and probabilistic scenarios to anticipate future price movements.",
+      },
+      risk: {
+        title: "Risk Awareness",
+        description: "Understand volatility, confidence bands and price uncertainty before committing.",
+      },
+      procurement: {
+        title: "Procurement-Ready",
+        description: "Designed for buyers, category managers and supply chain professionals.",
+      },
+    },
+    upload: {
+      step: "Step 1",
+      title: "Upload your historical price data",
+      description: "Start by uploading a CSV or Excel file with your price history. We'll take care of the rest.",
+      columns: "Columns: price, date",
+    },
+    howItWorks: {
+      title: "How it works",
+      subtitle: "From raw data to actionable insights in three simple steps.",
+      stepLabel: "Step",
+      step1: {
+        title: "Upload data",
+        description: "Import your historical price data from CSV or Excel files.",
+      },
+      step2: {
+        title: "Analyze trends",
+        description: "Explore statistics, correlations and identify patterns.",
+      },
+      step3: {
+        title: "Simulate scenarios",
+        description: "Generate probabilistic forecasts and assess risk levels.",
+      },
+    },
+    footer: {
+      tagline: "Analytics made simple",
+    },
+  },
 } as const;
 
 export type TranslationKeys = typeof en;

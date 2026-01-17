@@ -454,6 +454,62 @@ export const it = {
     networkError: "Errore di rete",
     tryAgain: "Riprova",
   },
+
+  // ============================================
+  // LANDING - Landing page
+  // ============================================
+  landing: {
+    hero: {
+      subtitle: "Il tuo compagno predittivo per decisioni di acquisto più intelligenti",
+      description: "Analizza i prezzi storici, prevedi scenari futuri e quantifica il rischio con modelli probabilistici pensati per il procurement.",
+      cta: "Carica i tuoi dati per iniziare",
+      trust1: "Sicurezza enterprise",
+      trust2: "Analisi istantanea",
+      trust3: "I dati non lasciano mai il tuo browser",
+    },
+    features: {
+      title: "Perché Sense",
+      subtitle: "Costruito per i professionisti del procurement che hanno bisogno di insight data-driven, non solo dati.",
+      forecasting: {
+        title: "Previsione Prezzi",
+        description: "Regressione lineare e scenari probabilistici per anticipare i movimenti futuri dei prezzi.",
+      },
+      risk: {
+        title: "Consapevolezza del Rischio",
+        description: "Comprendi volatilità, bande di confidenza e incertezza dei prezzi prima di impegnarti.",
+      },
+      procurement: {
+        title: "Pronto per il Procurement",
+        description: "Progettato per buyer, category manager e professionisti della supply chain.",
+      },
+    },
+    upload: {
+      step: "Step 1",
+      title: "Carica i tuoi dati storici dei prezzi",
+      description: "Inizia caricando un file CSV o Excel con lo storico prezzi. Ci pensiamo noi al resto.",
+      columns: "Colonne: price, date",
+    },
+    howItWorks: {
+      title: "Come funziona",
+      subtitle: "Dai dati grezzi agli insight azionabili in tre semplici step.",
+      stepLabel: "Step",
+      step1: {
+        title: "Carica i dati",
+        description: "Importa i tuoi dati storici dei prezzi da file CSV o Excel.",
+      },
+      step2: {
+        title: "Analizza i trend",
+        description: "Esplora statistiche, correlazioni e identifica pattern.",
+      },
+      step3: {
+        title: "Simula scenari",
+        description: "Genera previsioni probabilistiche e valuta i livelli di rischio.",
+      },
+    },
+    footer: {
+      tagline: "Analytics reso semplice",
+    },
+  },
 } as const;
 
 // Export type per autocompletamento
