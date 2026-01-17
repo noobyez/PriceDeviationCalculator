@@ -219,6 +219,20 @@ export const it = {
     titleTooltip: "La regressione lineare mostra il trend medio atteso dei prezzi basato sullo storico.",
     expectedPriceTooltip: "Prezzo previsto per il prossimo acquisto, calcolato dal trend storico.",
     confidenceTooltip: "Quanto è affidabile questa previsione: alto (>70%) = molto affidabile, basso (<40%) = poco affidabile.",
+    // Regression mode selector
+    modeTooltip: "Seleziona la modalità di regressione",
+    modeStandard: "Standard (Tempo)",
+    modeAdvanced: "Avanzata (Qtà + Tempo)",
+    noQuantityData: "Nessun dato quantità",
+    standardActive: "Regressione Tempo",
+    advancedActive: "Regressione Qtà + Tempo",
+    // Coefficients
+    coefficients: "Coefficienti",
+    coeffQuantity: "β Quantità",
+    coeffTime: "β Tempo",
+    intercept: "Intercetta (α)",
+    slope: "Pendenza (β)",
+    avgQuantityUsed: "Previsione con qtà media",
   },
 
   // ============================================

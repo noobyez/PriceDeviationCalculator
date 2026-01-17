@@ -49,9 +49,10 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
 
     const purchases: Purchase[] = [];
     for (const row of data) {
-      const quantity = typeof row[0] === "number" ? row[0] : parseFloat(String(row[0]).replace(",", "."));
+      // Column 0: Price
+      const price = typeof row[0] === "number" ? row[0] : parseFloat(String(row[0]).replace(",", "."));
 
-      // Normalize date from different possible cell types (string, number, Date)
+      // Column 1: Date - Normalize from different possible cell types (string, number, Date)
       let dateValue: string | null = null;
       const cell = row[1];
 
@@ -88,8 +89,17 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
         }
       }
 
-      if (!isNaN(quantity) && dateValue) {
-        purchases.push({ price: quantity, date: dateValue });
+      // Column 2 (optional): Quantity for advanced regression
+      let quantityValue: number | undefined = undefined;
+      if (row[2] !== undefined && row[2] !== null && row[2] !== "") {
+        const qtyRaw = typeof row[2] === "number" ? row[2] : parseFloat(String(row[2]).replace(",", "."));
+        if (Number.isFinite(qtyRaw) && qtyRaw >= 0) {
+          quantityValue = qtyRaw;
+        }
+      }
+
+      if (!isNaN(price) && dateValue) {
+        purchases.push({ price, date: dateValue, quantity: quantityValue });
       }
     }
     return purchases;
@@ -118,11 +128,32 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter((line) => line.length > 0)
-      .map((line) => {
-        const [quantityRaw, dateRaw] = line.split(/[,;\t]+/).map((v) => v.trim());
-        const parsedQuantity = parseFloat(String(quantityRaw).replace(",", "."));
+      .map((line): Purchase | null => {
+        const parts = line.split(/[,;\t]+/).map((v) => v.trim());
+        const [priceRaw, dateRaw, quantityRaw] = parts;
+        
+        // Parse price (column 0)
+        const parsedPrice = parseFloat(String(priceRaw).replace(",", "."));
+        // Parse date (column 1)
         const parsedDate = parseDateString(dateRaw);
-        return !isNaN(parsedQuantity) && parsedDate ? { price: parsedQuantity, date: parsedDate } : null;
+        
+        // Parse optional quantity (column 2)
+        let parsedQuantity: number | undefined = undefined;
+        if (quantityRaw !== undefined && quantityRaw !== "") {
+          const qtyNum = parseFloat(String(quantityRaw).replace(",", "."));
+          if (Number.isFinite(qtyNum) && qtyNum >= 0) {
+            parsedQuantity = qtyNum;
+          }
+        }
+        
+        if (!isNaN(parsedPrice) && parsedDate) {
+          const purchase: Purchase = { price: parsedPrice, date: parsedDate };
+          if (parsedQuantity !== undefined) {
+            purchase.quantity = parsedQuantity;
+          }
+          return purchase;
+        }
+        return null;
       })
       .filter((item): item is Purchase => item !== null);
   };

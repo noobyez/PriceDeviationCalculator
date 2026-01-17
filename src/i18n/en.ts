@@ -219,6 +219,20 @@ export const en = {
     titleTooltip: "Linear regression shows the expected average trend of prices based on history.",
     expectedPriceTooltip: "Predicted price for next purchase, calculated from historical trend.",
     confidenceTooltip: "How reliable this prediction is: high (>70%) = very reliable, low (<40%) = unreliable.",
+    // Regression mode selector
+    modeTooltip: "Select regression mode",
+    modeStandard: "Standard (Time)",
+    modeAdvanced: "Advanced (Qty + Time)",
+    noQuantityData: "No qty data",
+    standardActive: "Time Regression",
+    advancedActive: "Qty + Time Regression",
+    // Coefficients
+    coefficients: "Coefficients",
+    coeffQuantity: "β Quantity",
+    coeffTime: "β Time",
+    intercept: "Intercept (α)",
+    slope: "Slope (β)",
+    avgQuantityUsed: "Prediction uses avg qty",
   },
 
   // ============================================

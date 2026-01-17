@@ -20,7 +20,8 @@ import {
 } from "./components/landing";
 import { useLanguage } from "@/i18n";
 import { useState, useMemo, useCallback, useRef } from "react";
-import { Purchase } from "../models/Purchase";
+import { Purchase, RegressionMode } from "../models/Purchase";
+import { calculateRegression, hasValidQuantities } from "@/utils/regression";
 
 // Funzioni statistiche
 function mean(arr: number[]) {
@@ -107,6 +108,9 @@ export default function Home() {
   // Stato per zoom grafici
   const [zoomedChart, setZoomedChart] = useState<string | null>(null);
   
+  // Stato per modalità regressione (standard vs advanced con quantità)
+  const [regressionMode, setRegressionMode] = useState<RegressionMode>('standard');
+  
   // Handler per scroll alla sezione upload
   const scrollToUpload = useCallback(() => {
     uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -145,12 +149,28 @@ export default function Home() {
   const handleUpload = (uploadedPurchases: Purchase[]) => {
     try {
       // sanitize input: ensure price is finite number and date is valid
+      // preserve quantity if present (for advanced regression)
       const sane: Purchase[] = uploadedPurchases
-        .map((p) => ({ price: Number(p.price), date: String(p.date) }))
+        .map((p) => {
+          const purchase: Purchase = { 
+            price: Number(p.price), 
+            date: String(p.date) 
+          };
+          // Preserve quantity if valid
+          if (p.quantity !== undefined && Number.isFinite(p.quantity) && p.quantity >= 0) {
+            purchase.quantity = p.quantity;
+          }
+          return purchase;
+        })
         .filter((p) => Number.isFinite(p.price) && !!p.date && !isNaN(new Date(p.date).getTime()));
       setPurchases(sane.length > 0 ? sane : null);
       // Reset esclusioni manuali quando si carica un nuovo file
       setExcludedIndices(new Set());
+      // Reset regression mode se i nuovi dati non hanno quantità
+      const hasQty = sane.some(p => p.quantity !== undefined);
+      if (!hasQty) {
+        setRegressionMode('standard');
+      }
     } catch (err) {
       console.error('Error processing uploaded purchases', err);
       setPurchases(null);
@@ -237,6 +257,14 @@ export default function Home() {
     [filteredByDate]
   );
 
+  // fullQuantities: quantità corrispondenti ai fullPrices (per regressione avanzata)
+  const fullQuantities = useMemo(() =>
+    filteredByDate
+      .filter((p) => Number.isFinite(Number(p.price)))
+      .map((p) => p.quantity),
+    [filteredByDate]
+  );
+
   // intervalPricesRaw: dati originali dopo selezione intervallo (usati per visualizzazione e per calcolare Z-score)
   const intervalPricesRaw = useMemo(() => {
     if (interval === "all") return fullPrices;
@@ -255,10 +283,19 @@ export default function Home() {
     return fullDates;
   }, [fullDates, interval]);
 
+  // intervalQuantitiesRaw: quantità corrispondenti a intervalPricesRaw
+  const intervalQuantitiesRaw = useMemo(() => {
+    if (interval === "all") return fullQuantities;
+    if (typeof interval === "number") {
+      return fullQuantities.slice(-interval);
+    }
+    return fullQuantities;
+  }, [fullQuantities, interval]);
+
   // Calcola Z-score per individuare outlier e costruisce intervalPrices filtrati se removeOutliers=true
-  const { intervalPrices, intervalDates, outlierFlags } = useMemo(() => {
+  const { intervalPrices, intervalDates, intervalQuantities, outlierFlags } = useMemo(() => {
     if (!intervalPricesRaw || intervalPricesRaw.length === 0) {
-      return { intervalPrices: intervalPricesRaw, intervalDates: intervalDatesRaw, outlierFlags: [] };
+      return { intervalPrices: intervalPricesRaw, intervalDates: intervalDatesRaw, intervalQuantities: intervalQuantitiesRaw, outlierFlags: [] };
     }
 
     const m = mean(intervalPricesRaw);
@@ -273,17 +310,19 @@ export default function Home() {
     // Filtra per outlier Z-score e per esclusioni manuali
     const filtered: number[] = [];
     const filteredDates: string[] = [];
+    const filteredQuantities: (number | undefined)[] = [];
     intervalPricesRaw.forEach((price, i) => {
       const isZScoreOutlier = removeOutliers && flags[i];
       const isManuallyExcluded = excludedIndices.has(i);
       if (!isZScoreOutlier && !isManuallyExcluded) {
         filtered.push(price);
         filteredDates.push(intervalDatesRaw[i] || '');
+        filteredQuantities.push(intervalQuantitiesRaw[i]);
       }
     });
 
-    return { intervalPrices: filtered, intervalDates: filteredDates, outlierFlags: flags };
-  }, [intervalPricesRaw, intervalDatesRaw, removeOutliers, excludedIndices]);
+    return { intervalPrices: filtered, intervalDates: filteredDates, intervalQuantities: filteredQuantities, outlierFlags: flags };
+  }, [intervalPricesRaw, intervalDatesRaw, intervalQuantitiesRaw, removeOutliers, excludedIndices]);
 
   // Handler per toggle esclusione manuale di un valore
   const toggleExclude = (index: number) => {
@@ -303,22 +342,31 @@ export default function Home() {
     setExcludedIndices(new Set());
   };
 
+  // Quantità valide per regressione avanzata (filtra undefined e converte a number[])
+  const validQuantities = useMemo(() => {
+    if (!intervalQuantities) return undefined;
+    // Verifica che tutte le quantità siano valide
+    const allValid = intervalQuantities.every(q => q !== undefined && Number.isFinite(q));
+    if (!allValid) return undefined;
+    return intervalQuantities.filter((q): q is number => q !== undefined);
+  }, [intervalQuantities]);
+
   // Calcola regressione per outlier e PDF (include R² confidence)
+  // Supporta sia modalità standard (tempo) che avanzata (quantità + tempo)
   const regression = useMemo(() => {
     if (!intervalPrices || intervalPrices.length === 0) return null;
-    const base = linearRegression(intervalPrices);
-    if (!base) return null;
-    // compute R² using the same x=1..n mapping used in linearRegression
-    const n = intervalPrices.length;
-    const meanY = intervalPrices.reduce((a, b) => a + b, 0) / n;
-    const ssTot = intervalPrices.reduce((acc, yi) => acc + (yi - meanY) ** 2, 0);
-    const ssRes = intervalPrices.reduce((acc, yi, i) => {
-      const yiPred = base.a + base.b * (i + 1);
-      return acc + (yi - yiPred) ** 2;
-    }, 0);
-    const r2 = ssTot === 0 ? 1 : Math.max(0, Math.min(1, 1 - ssRes / ssTot));
-    return { ...base, r2 };
-  }, [intervalPrices]);
+    
+    // Usa la funzione di utilità per calcolare la regressione
+    const result = calculateRegression(intervalPrices, regressionMode, validQuantities);
+    if (!result) return null;
+    
+    // Per compatibilità con i componenti esistenti, aggiungi a/b se standard
+    if (result.mode === 'standard') {
+      return { ...result, a: result.a, b: result.b };
+    }
+    // Per la regressione avanzata, usa betaTime come slope per i grafici
+    return { ...result, a: result.alpha, b: result.betaTime };
+  }, [intervalPrices, regressionMode, validQuantities]);
 
   // Outlier: solo il nuovo prezzo offerto se supera ±5% dal prezzo atteso
   const isNewPriceOutlier = useMemo(() => {
@@ -590,7 +638,12 @@ export default function Home() {
 
       case 'regression':
         return intervalPrices && intervalPrices.length > 0 ? (
-          <LinearRegressionResult prices={intervalPrices} />
+          <LinearRegressionResult 
+            prices={intervalPrices} 
+            quantities={validQuantities}
+            mode={regressionMode}
+            onModeChange={setRegressionMode}
+          />
         ) : (
           <p className="text-sm text-zinc-400">{t("charts.noDataForChart")}</p>
         );
@@ -643,7 +696,7 @@ export default function Home() {
     handleUpload, resetDateFilter, handleDateFilter, formatDateDisplay,
     resetExclusions, toggleExclude, handleCustomIntervalChange, handleCustomIntervalKeyDown,
     applyCustomInterval, setFromDate, setToDate, setRemoveOutliers, setInterval,
-    setCustomInterval, setNewPrice, setDeviation
+    setCustomInterval, setNewPrice, setDeviation, validQuantities, regressionMode, setRegressionMode
   ]);
 
   return (

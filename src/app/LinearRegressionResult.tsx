@@ -2,44 +2,30 @@
 import React from "react";
 import { Tooltip } from "./components/help";
 import { useLanguage } from "@/i18n";
+import { RegressionMode, RegressionResult } from "@/models/Purchase";
+import { calculateRegression, hasValidQuantities } from "@/utils/regression";
 
 interface LinearRegressionResultProps {
   prices: number[];
+  quantities?: number[];
+  mode: RegressionMode;
+  onModeChange: (mode: RegressionMode) => void;
 }
 
-// Calcola la retta di regressione y = a + b*x e predice il valore per x = n+1
-function linearRegression(prices: number[]): { a: number; b: number; predicted: number; r2: number } | null {
-  const n = prices.length;
-  if (n < 2) return null;
-  const x = Array.from({ length: n }, (_, i) => i + 1); // x = 1, 2, ..., n
-  const y = prices;
-  const sumX = x.reduce((a, b) => a + b, 0);
-  const sumY = y.reduce((a, b) => a + b, 0);
-  const sumXY = x.reduce((acc, xi, i) => acc + xi * y[i], 0);
-  const sumX2 = x.reduce((acc, xi) => acc + xi * xi, 0);
-  const denominator = n * sumX2 - sumX * sumX;
-  if (denominator === 0) return null;
-  const a = (sumY * sumX2 - sumX * sumXY) / denominator;
-  const b = (n * sumXY - sumX * sumY) / denominator;
-  const nextX = n + 1;
-  const predicted = a + b * nextX;
-
-  // Compute R² (coefficient of determination) as a simple model confidence metric
-  // R² = 1 - SS_res / SS_tot
-  const meanY = sumY / n;
-  const ssTot = y.reduce((acc, yi) => acc + (yi - meanY) ** 2, 0);
-  const ssRes = y.reduce((acc, yi, i) => {
-    const yiPred = a + b * x[i];
-    return acc + (yi - yiPred) ** 2;
-  }, 0);
-  const r2 = ssTot === 0 ? 1 : Math.max(0, Math.min(1, 1 - ssRes / ssTot));
-
-  return { a, b, predicted, r2 };
-}
-
-export default function LinearRegressionResult({ prices }: LinearRegressionResultProps) {
+export default function LinearRegressionResult({ 
+  prices, 
+  quantities,
+  mode,
+  onModeChange 
+}: LinearRegressionResultProps) {
   const { t } = useLanguage();
-  const result = linearRegression(prices);
+  
+  // Check if advanced mode is available (quantities present)
+  const canUseAdvancedMode = hasValidQuantities(quantities);
+  
+  // Calculate regression based on current mode
+  const result = calculateRegression(prices, mode, quantities);
+  
   if (!result) return null;
 
   // Determine confidence level for visual feedback
@@ -52,11 +38,46 @@ export default function LinearRegressionResult({ prices }: LinearRegressionResul
 
   return (
     <div className="flex flex-col gap-3">
-      <Tooltip content={t("regression.titleTooltip")}>
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          {t("regression.title")}
-        </h3>
-      </Tooltip>
+      <div className="flex items-center justify-between">
+        <Tooltip content={t("regression.titleTooltip")}>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            {t("regression.title")}
+          </h3>
+        </Tooltip>
+        
+        {/* Regression Mode Selector */}
+        <div className="flex items-center gap-2">
+          <Tooltip content={t("regression.modeTooltip") || "Select regression mode"}>
+            <select
+              value={mode}
+              onChange={(e) => onModeChange(e.target.value as RegressionMode)}
+              className="text-xs px-2 py-1 rounded-md border border-zinc-300 dark:border-zinc-600 
+                         bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300
+                         focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={!canUseAdvancedMode && mode === 'standard'}
+            >
+              <option value="standard">{t("regression.modeStandard") || "Standard (Time)"}</option>
+              <option value="advanced" disabled={!canUseAdvancedMode}>
+                {t("regression.modeAdvanced") || "Advanced (Qty + Time)"}
+                {!canUseAdvancedMode && ` - ${t("regression.noQuantityData") || "No qty data"}`}
+              </option>
+            </select>
+          </Tooltip>
+        </div>
+      </div>
+
+      {/* Mode indicator badge */}
+      <div className="flex items-center gap-2">
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+          ${result.mode === 'advanced' 
+            ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' 
+            : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}
+        >
+          {result.mode === 'advanced' 
+            ? (t("regression.advancedActive") || "Qty + Time Regression") 
+            : (t("regression.standardActive") || "Time Regression")}
+        </span>
+      </div>
       
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -80,6 +101,60 @@ export default function LinearRegressionResult({ prices }: LinearRegressionResul
           </div>
         </div>
       </div>
+
+      {/* Coefficients display based on mode */}
+      {result.mode === 'advanced' && (
+        <div className="mt-2 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-2">
+            {t("regression.coefficients") || "Coefficients"}
+          </h4>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="text-zinc-500 dark:text-zinc-400">{t("regression.coeffQuantity") || "β Quantity"}:</span>
+              <span className="ml-2 font-mono font-medium text-zinc-700 dark:text-zinc-300">
+                {result.betaQuantity.toFixed(4)}
+              </span>
+            </div>
+            <div>
+              <span className="text-zinc-500 dark:text-zinc-400">{t("regression.coeffTime") || "β Time"}:</span>
+              <span className="ml-2 font-mono font-medium text-zinc-700 dark:text-zinc-300">
+                {result.betaTime.toFixed(4)}
+              </span>
+            </div>
+            <div className="col-span-2">
+              <span className="text-zinc-500 dark:text-zinc-400">{t("regression.intercept") || "Intercept (α)"}:</span>
+              <span className="ml-2 font-mono font-medium text-zinc-700 dark:text-zinc-300">
+                {result.alpha.toFixed(4)}
+              </span>
+            </div>
+          </div>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-2 italic">
+            {t("regression.avgQuantityUsed") || "Prediction uses avg qty"}: {result.avgQuantity.toFixed(2)}
+          </p>
+        </div>
+      )}
+
+      {result.mode === 'standard' && (
+        <div className="mt-2 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-2">
+            {t("regression.coefficients") || "Coefficients"}
+          </h4>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="text-zinc-500 dark:text-zinc-400">{t("regression.slope") || "Slope (β)"}:</span>
+              <span className="ml-2 font-mono font-medium text-zinc-700 dark:text-zinc-300">
+                {result.b.toFixed(4)}
+              </span>
+            </div>
+            <div>
+              <span className="text-zinc-500 dark:text-zinc-400">{t("regression.intercept") || "Intercept (α)"}:</span>
+              <span className="ml-2 font-mono font-medium text-zinc-700 dark:text-zinc-300">
+                {result.a.toFixed(4)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <p className="text-xs text-zinc-500 dark:text-zinc-400 italic">
         {t("regression.confidenceDesc")}
