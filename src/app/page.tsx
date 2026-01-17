@@ -8,6 +8,8 @@ import OverlayHistoricalVsForecast from "./OverlayHistoricalVsForecast";
 import StatisticsPanel from "./StatisticsPanel";
 import DownloadPdfButton from "./DownloadPdfButton";
 import ProductCorrelationPanel from "./ProductCorrelationPanel";
+import ItemSelector from "./components/ItemSelector";
+import ItemComparisonDashboard from "./components/ItemComparisonDashboard";
 import { ModularLayout, PanelConfig } from "./components/modular";
 import { HelpPanel, HelpToggle } from "./components/help";
 import { LanguageSelector } from "./components/i18n";
@@ -20,8 +22,9 @@ import {
 } from "./components/landing";
 import { useLanguage } from "@/i18n";
 import { useState, useMemo, useCallback, useRef } from "react";
-import { Purchase, RegressionMode } from "../models/Purchase";
+import { Purchase, RegressionMode, GroupedPurchaseData } from "../models/Purchase";
 import { calculateRegression, hasValidQuantities } from "@/utils/regression";
+import { groupPurchasesByItem, DEFAULT_ITEM_NAME } from "@/utils/multiItemUtils";
 
 // Funzioni statistiche
 function mean(arr: number[]) {
@@ -111,6 +114,9 @@ export default function Home() {
   // Stato per modalità regressione (standard vs advanced con quantità)
   const [regressionMode, setRegressionMode] = useState<RegressionMode>('standard');
   
+  // Stato per selezione item (multi-item datasets)
+  const [selectedItem, setSelectedItem] = useState<string>(DEFAULT_ITEM_NAME);
+  
   // Handler per scroll alla sezione upload
   const scrollToUpload = useCallback(() => {
     uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -149,7 +155,7 @@ export default function Home() {
   const handleUpload = (uploadedPurchases: Purchase[]) => {
     try {
       // sanitize input: ensure price is finite number and date is valid
-      // preserve quantity if present (for advanced regression)
+      // preserve quantity and item if present
       const sane: Purchase[] = uploadedPurchases
         .map((p) => {
           const purchase: Purchase = { 
@@ -160,9 +166,14 @@ export default function Home() {
           if (p.quantity !== undefined && Number.isFinite(p.quantity) && p.quantity >= 0) {
             purchase.quantity = p.quantity;
           }
+          // Preserve item name if present
+          if (p.item !== undefined && p.item.trim().length > 0) {
+            purchase.item = p.item.trim();
+          }
           return purchase;
         })
         .filter((p) => Number.isFinite(p.price) && !!p.date && !isNaN(new Date(p.date).getTime()));
+      
       setPurchases(sane.length > 0 ? sane : null);
       // Reset esclusioni manuali quando si carica un nuovo file
       setExcludedIndices(new Set());
@@ -170,6 +181,13 @@ export default function Home() {
       const hasQty = sane.some(p => p.quantity !== undefined);
       if (!hasQty) {
         setRegressionMode('standard');
+      }
+      // Seleziona automaticamente il primo item disponibile
+      const grouped = groupPurchasesByItem(sane);
+      if (grouped.items.length > 0) {
+        setSelectedItem(grouped.items[0]);
+      } else {
+        setSelectedItem(DEFAULT_ITEM_NAME);
       }
     } catch (err) {
       console.error('Error processing uploaded purchases', err);
@@ -220,14 +238,31 @@ export default function Home() {
     setAppliedToDate("");
   };
 
-  // Filtra purchases per intervallo di date
-  const filteredByDate = useMemo(() => {
+  // ============================================
+  // MULTI-ITEM DATA GROUPING
+  // ============================================
+  
+  // Raggruppa tutti i purchases per item (memoizzato)
+  const groupedData: GroupedPurchaseData = useMemo(() => {
+    if (!purchases) return { items: [], byItem: {}, hasMultipleItems: false };
+    return groupPurchasesByItem(purchases);
+  }, [purchases]);
+
+  // Purchases filtrati per l'item selezionato
+  const purchasesForSelectedItem = useMemo(() => {
     if (!purchases) return [];
+    if (!groupedData.hasMultipleItems) return purchases;
+    return groupedData.byItem[selectedItem] || [];
+  }, [purchases, groupedData, selectedItem]);
+
+  // Filtra purchases per intervallo di date (ora usa purchasesForSelectedItem)
+  const filteredByDate = useMemo(() => {
+    if (!purchasesForSelectedItem || purchasesForSelectedItem.length === 0) return [];
     
     const fromParsed = parseDateString(appliedFromDate);
     const toParsed = parseDateString(appliedToDate);
 
-    return purchases.filter((purchase) => {
+    return purchasesForSelectedItem.filter((purchase) => {
       try {
         const d = new Date(purchase.date);
         if (isNaN(d.getTime())) return false;
@@ -239,7 +274,7 @@ export default function Home() {
         return false;
       }
     });
-  }, [purchases, appliedFromDate, appliedToDate]);
+  }, [purchasesForSelectedItem, appliedFromDate, appliedToDate]);
 
   // fullPrices: all prices within selected dates (preserve original order and duplicates)
   const fullPrices = useMemo(() =>
@@ -429,6 +464,16 @@ export default function Home() {
     switch (panelId) {
       case 'upload':
         return <PriceHistoryUpload onUpload={handleUpload} />;
+
+      case 'itemSelector':
+        return (
+          <ItemSelector
+            items={groupedData.items}
+            selectedItem={selectedItem}
+            onItemChange={setSelectedItem}
+            hasMultipleItems={groupedData.hasMultipleItems}
+          />
+        );
 
       case 'dateFilter':
         return (
@@ -685,6 +730,17 @@ export default function Home() {
           <p className="text-sm text-zinc-400">{t("charts.noDataForChart")}</p>
         );
 
+      case 'itemComparison':
+        return groupedData.hasMultipleItems ? (
+          <ItemComparisonDashboard groupedData={groupedData} />
+        ) : (
+          <div className="p-4 text-center bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              {t("itemComparison.needMultipleItems") || "Upload a dataset with multiple items to enable comparison"}
+            </p>
+          </div>
+        );
+
       default:
         return <p className="text-sm text-zinc-400">{t("errors.generic")}</p>;
     }
@@ -696,7 +752,8 @@ export default function Home() {
     handleUpload, resetDateFilter, handleDateFilter, formatDateDisplay,
     resetExclusions, toggleExclude, handleCustomIntervalChange, handleCustomIntervalKeyDown,
     applyCustomInterval, setFromDate, setToDate, setRemoveOutliers, setInterval,
-    setCustomInterval, setNewPrice, setDeviation, validQuantities, regressionMode, setRegressionMode
+    setCustomInterval, setNewPrice, setDeviation, validQuantities, regressionMode, setRegressionMode,
+    groupedData, selectedItem, setSelectedItem
   ]);
 
   return (

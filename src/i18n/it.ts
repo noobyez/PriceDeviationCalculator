@@ -60,6 +60,7 @@ export const it = {
   // ============================================
   panels: {
     upload: "Carica Storico Prezzi",
+    itemSelector: "Selezione Item",
     dateFilter: "Filtro per Data",
     priceHistory: "Storico Prezzi",
     interval: "Intervallo Dati",
@@ -71,6 +72,7 @@ export const it = {
     correlation: "Analisi Correlazione",
     probabilistic: "Previsione Probabilistica",
     overlay: "Storico vs Previsione",
+    itemComparison: "Confronto Item",
     hidePanel: "Nascondi pannello",
     movePanel: "Sposta pannello",
   },
@@ -523,6 +525,40 @@ export const it = {
     footer: {
       tagline: "Analytics reso semplice",
     },
+  },
+
+  // ============================================
+  // ITEM SELECTOR - Selezione item multi-item
+  // ============================================
+  itemSelector: {
+    label: "Analizza Item:",
+    tooltip: "Seleziona l'item da analizzare",
+    itemsCount: "items",
+    allItems: "Tutti gli item",
+  },
+
+  // ============================================
+  // ITEM COMPARISON - Confronto tra item
+  // ============================================
+  itemComparison: {
+    title: "Confronto Item",
+    itemA: "Item A",
+    itemB: "Item B",
+    selectDifferentItems: "Seleziona due item diversi per il confronto",
+    needMultipleItems: "Carica un dataset con più item per abilitare il confronto",
+    noCommonDates: "Nessuna data comune trovata tra gli item selezionati",
+    correlationTitle: "Correlazione Prezzi",
+    priceComparison: "Confronto Prezzi nel Tempo",
+    correlationOverTime: "Correlazione nel Tempo (finestra 5 punti)",
+    rollingCorrelation: "Correlazione Rolling",
+    commonDataPoints: "punti dati comuni",
+    significant: "Significativa",
+    strong: "Forte",
+    moderate: "Moderata", 
+    weak: "Debole",
+    positive: "positiva",
+    negative: "negativa",
+    correlationNote: "Valori vicini a +1 indicano prezzi che si muovono insieme, valori vicini a -1 indicano movimento inverso",
   },
 } as const;
 

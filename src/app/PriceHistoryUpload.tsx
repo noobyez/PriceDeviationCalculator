@@ -98,8 +98,17 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
         }
       }
 
+      // Column 3 (optional): Item name for multi-item datasets
+      let itemValue: string | undefined = undefined;
+      if (row[3] !== undefined && row[3] !== null && row[3] !== "") {
+        const itemStr = String(row[3]).trim();
+        if (itemStr.length > 0) {
+          itemValue = itemStr;
+        }
+      }
+
       if (!isNaN(price) && dateValue) {
-        purchases.push({ price, date: dateValue, quantity: quantityValue });
+        purchases.push({ price, date: dateValue, quantity: quantityValue, item: itemValue });
       }
     }
     return purchases;
@@ -130,7 +139,7 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
       .filter((line) => line.length > 0)
       .map((line): Purchase | null => {
         const parts = line.split(/[,;\t]+/).map((v) => v.trim());
-        const [priceRaw, dateRaw, quantityRaw] = parts;
+        const [priceRaw, dateRaw, quantityRaw, itemRaw] = parts;
         
         // Parse price (column 0)
         const parsedPrice = parseFloat(String(priceRaw).replace(",", "."));
@@ -146,10 +155,22 @@ export default function PriceHistoryUpload({ onUpload }: PriceHistoryUploadProps
           }
         }
         
+        // Parse optional item name (column 3)
+        let parsedItem: string | undefined = undefined;
+        if (itemRaw !== undefined && itemRaw !== "") {
+          const itemStr = String(itemRaw).trim();
+          if (itemStr.length > 0) {
+            parsedItem = itemStr;
+          }
+        }
+        
         if (!isNaN(parsedPrice) && parsedDate) {
           const purchase: Purchase = { price: parsedPrice, date: parsedDate };
           if (parsedQuantity !== undefined) {
             purchase.quantity = parsedQuantity;
+          }
+          if (parsedItem !== undefined) {
+            purchase.item = parsedItem;
           }
           return purchase;
         }

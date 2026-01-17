@@ -2,6 +2,16 @@ export interface Purchase {
   date: string; // ISO string format
   price: number;
   quantity?: number; // Optional: quantity ordered (for advanced regression)
+  item?: string; // Optional: item identifier for multi-item datasets
+}
+
+/**
+ * Dataset grouped by item for multi-item analysis
+ */
+export interface GroupedPurchaseData {
+  items: string[]; // List of unique item names
+  byItem: Record<string, Purchase[]>; // Purchases grouped by item
+  hasMultipleItems: boolean; // True if dataset contains multiple items
 }
 
 /**

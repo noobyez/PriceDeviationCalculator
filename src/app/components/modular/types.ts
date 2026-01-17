@@ -31,12 +31,13 @@ export type PanelAction =
 export const DEFAULT_PANELS: PanelConfig[] = [
   // Left column panels
   { id: 'upload', title: 'Carica Storico Prezzi', visible: true, column: 'left', order: 0 },
-  { id: 'dateFilter', title: 'Filtro per Data', visible: true, column: 'left', order: 1 },
-  { id: 'priceHistory', title: 'Storico Prezzi', visible: true, column: 'left', order: 2 },
-  { id: 'interval', title: 'Intervallo Dati', visible: true, column: 'left', order: 3 },
-  { id: 'statistics', title: 'Statistiche', visible: true, column: 'left', order: 4 },
-  { id: 'newPrice', title: 'Valutazione Nuovo Prezzo', visible: true, column: 'left', order: 5 },
-  { id: 'download', title: 'Download PDF', visible: true, column: 'left', order: 6 },
+  { id: 'itemSelector', title: 'Selezione Item', visible: true, column: 'left', order: 1 },
+  { id: 'dateFilter', title: 'Filtro per Data', visible: true, column: 'left', order: 2 },
+  { id: 'priceHistory', title: 'Storico Prezzi', visible: true, column: 'left', order: 3 },
+  { id: 'interval', title: 'Intervallo Dati', visible: true, column: 'left', order: 4 },
+  { id: 'statistics', title: 'Statistiche', visible: true, column: 'left', order: 5 },
+  { id: 'newPrice', title: 'Valutazione Nuovo Prezzo', visible: true, column: 'left', order: 6 },
+  { id: 'download', title: 'Download PDF', visible: true, column: 'left', order: 7 },
   
   // Right column panels
   { id: 'priceChart', title: 'Grafico Prezzi', visible: true, column: 'right', order: 0, minHeight: 400 },
@@ -44,6 +45,7 @@ export const DEFAULT_PANELS: PanelConfig[] = [
   { id: 'correlation', title: 'Analisi Correlazione', visible: true, column: 'right', order: 2 },
   { id: 'probabilistic', title: 'Previsione Probabilistica', visible: true, column: 'right', order: 3, minHeight: 350 },
   { id: 'overlay', title: 'Storico vs Previsione', visible: true, column: 'right', order: 4, minHeight: 350 },
+  { id: 'itemComparison', title: 'Confronto Item', visible: true, column: 'right', order: 5, minHeight: 450 },
 ];
 
 export function layoutReducer(state: LayoutState, action: PanelAction): LayoutState {

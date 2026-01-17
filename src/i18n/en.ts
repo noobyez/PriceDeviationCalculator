@@ -60,6 +60,7 @@ export const en = {
   // ============================================
   panels: {
     upload: "Upload Price History",
+    itemSelector: "Item Selection",
     dateFilter: "Date Filter",
     priceHistory: "Price History",
     interval: "Data Interval",
@@ -71,6 +72,7 @@ export const en = {
     correlation: "Correlation Analysis",
     probabilistic: "Probabilistic Forecast",
     overlay: "History vs Forecast",
+    itemComparison: "Item Comparison",
     hidePanel: "Hide panel",
     movePanel: "Move panel",
   },
@@ -523,6 +525,40 @@ export const en = {
     footer: {
       tagline: "Analytics made simple",
     },
+  },
+
+  // ============================================
+  // ITEM SELECTOR - Multi-item selection
+  // ============================================
+  itemSelector: {
+    label: "Analyze Item:",
+    tooltip: "Select the item to analyze",
+    itemsCount: "items",
+    allItems: "All items",
+  },
+
+  // ============================================
+  // ITEM COMPARISON - Item comparison
+  // ============================================
+  itemComparison: {
+    title: "Item Comparison",
+    itemA: "Item A",
+    itemB: "Item B",
+    selectDifferentItems: "Please select two different items for comparison",
+    needMultipleItems: "Upload a dataset with multiple items to enable comparison",
+    noCommonDates: "No common dates found between selected items",
+    correlationTitle: "Price Correlation",
+    priceComparison: "Price Comparison Over Time",
+    correlationOverTime: "Correlation Over Time (5-point window)",
+    rollingCorrelation: "Rolling Correlation",
+    commonDataPoints: "common data points",
+    significant: "Significant",
+    strong: "Strong",
+    moderate: "Moderate",
+    weak: "Weak",
+    positive: "positive",
+    negative: "negative",
+    correlationNote: "Values near +1 indicate prices move together, values near -1 indicate inverse movement",
   },
 } as const;
 
