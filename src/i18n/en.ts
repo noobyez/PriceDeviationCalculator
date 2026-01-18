@@ -281,6 +281,18 @@ export const en = {
     priceChart: "Price Chart",
     probabilistic: "Probabilistic Forecast",
     overlay: "History vs Forecast",
+    // Tooltips for panels
+    probabilisticTooltip: "Shows future scenarios with probability bands: green (68%), amber (95%), red (99.7%). The closer the price is to the center line, the more likely it is.",
+    overlayTooltip: "Compares historical prices with future forecasts. The colored bands show where the price will likely fall in the next periods.",
+    probabilisticTitle: "Probabilistic Forecast",
+    probabilisticDescription: "This chart shows future price forecasts with Gaussian probability bands based on historical regression errors.",
+    overlayTitle: "History vs Forecast",
+    overlayDescription: "This chart combines historical data with future forecasts, allowing you to see how the past trend projects into the future.",
+    // Band explanations
+    band1SigmaExplanation: "Green band (±1σ): 68% probability that the price will fall in this range",
+    band2SigmaExplanation: "Amber band (±2σ): 95% probability that the price will fall in this range",
+    band3SigmaExplanation: "Red band (±3σ): 99.7% probability that the price will fall in this range",
+    sigmaExplanation: "σ (sigma) represents the standard deviation of historical prediction errors",
     historical: "Historical",
     predicted: "Predicted",
     trendLine: "Trend Line",

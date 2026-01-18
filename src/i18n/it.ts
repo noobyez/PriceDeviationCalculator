@@ -281,6 +281,18 @@ export const it = {
     priceChart: "Grafico Prezzi",
     probabilistic: "Previsione Probabilistica",
     overlay: "Storico vs Previsione",
+    // Tooltip per i pannelli
+    probabilisticTooltip: "Mostra scenari futuri con fasce di probabilità: verde (68%), ambra (95%), rosso (99.7%). Più il prezzo è vicino alla linea centrale, più è probabile.",
+    overlayTooltip: "Confronta i prezzi storici con le previsioni future. Le bande colorate mostrano dove probabilmente cadrà il prezzo nei prossimi periodi.",
+    probabilisticTitle: "Previsione Probabilistica",
+    probabilisticDescription: "Questo grafico mostra le previsioni future dei prezzi con bande di probabilità gaussiane basate sugli errori storici della regressione.",
+    overlayTitle: "Storico vs Previsione",
+    overlayDescription: "Questo grafico combina i dati storici con le previsioni future, permettendo di vedere come il trend passato si proietta nel futuro.",
+    // Spiegazioni delle bande
+    band1SigmaExplanation: "Banda verde (±1σ): il prezzo ha il 68% di probabilità di cadere in questa fascia",
+    band2SigmaExplanation: "Banda ambra (±2σ): il prezzo ha il 95% di probabilità di cadere in questa fascia",
+    band3SigmaExplanation: "Banda rossa (±3σ): il prezzo ha il 99.7% di probabilità di cadere in questa fascia",
+    sigmaExplanation: "σ (sigma) rappresenta la deviazione standard degli errori storici di previsione",
     historical: "Storico",
     predicted: "Previsto",
     trendLine: "Linea Trend",

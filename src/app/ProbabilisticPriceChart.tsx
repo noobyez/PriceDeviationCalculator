@@ -13,6 +13,7 @@ import {
   Legend,
 } from "chart.js";
 import { useLanguage } from "@/i18n";
+import { Tooltip as HelpTooltip } from "./components/help";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Title, Tooltip, Legend);
 
@@ -256,25 +257,45 @@ export default function ProbabilisticPriceChart({
 
   return (
     <div className="w-full flex flex-col gap-3">
+      {/* Header con tooltip di aiuto */}
+      <div className="flex items-center justify-between">
+        <HelpTooltip content={t("charts.probabilisticTooltip") || "Shows future scenarios with probability bands"}>
+          <h4 className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+            {t("charts.probabilisticTitle") || t("charts.probabilistic")}
+          </h4>
+        </HelpTooltip>
+      </div>
+
+      {/* Descrizione breve */}
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        {t("charts.probabilisticDescription") || "Future price forecasts with Gaussian probability bands."}
+      </p>
+
       {/* Chart container */}
       <div className="w-full h-[280px]">
         <Line data={data} options={options} />
       </div>
 
-      {/* Legenda esplicativa */}
+      {/* Legenda esplicativa con tooltip */}
       <div className="flex flex-wrap gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-emerald-500/30"></span>
-          <span>{t("charts.sigma1")}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-amber-500/30"></span>
-          <span>{t("charts.sigma2")}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-red-500/20"></span>
-          <span>{t("charts.sigma3")}</span>
-        </div>
+        <HelpTooltip content={t("charts.band1SigmaExplanation") || "68% probability the price falls in this range"} position="bottom">
+          <div className="flex items-center gap-1.5 cursor-help">
+            <span className="w-3 h-3 rounded-sm bg-emerald-500/30"></span>
+            <span>{t("charts.sigma1")}</span>
+          </div>
+        </HelpTooltip>
+        <HelpTooltip content={t("charts.band2SigmaExplanation") || "95% probability the price falls in this range"} position="bottom">
+          <div className="flex items-center gap-1.5 cursor-help">
+            <span className="w-3 h-3 rounded-sm bg-amber-500/30"></span>
+            <span>{t("charts.sigma2")}</span>
+          </div>
+        </HelpTooltip>
+        <HelpTooltip content={t("charts.band3SigmaExplanation") || "99.7% probability the price falls in this range"} position="bottom">
+          <div className="flex items-center gap-1.5 cursor-help">
+            <span className="w-3 h-3 rounded-sm bg-red-500/20"></span>
+            <span>{t("charts.sigma3")}</span>
+          </div>
+        </HelpTooltip>
       </div>
 
       {/* Info sul nuovo prezzo */}
@@ -295,10 +316,12 @@ export default function ProbabilisticPriceChart({
         </div>
       )}
 
-      {/* Nota tecnica */}
-      <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">
-        σ = {sigma.toFixed(2)} ({t("charts.sigmaNote")})
-      </p>
+      {/* Nota tecnica con tooltip */}
+      <HelpTooltip content={t("charts.sigmaExplanation") || "Sigma represents the standard deviation of historical prediction errors"} position="top">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic cursor-help">
+          σ = {sigma.toFixed(2)} ({t("charts.sigmaNote")})
+        </p>
+      </HelpTooltip>
     </div>
   );
 }
